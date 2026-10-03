@@ -1,0 +1,949 @@
+{
+  "taxonomy": {
+    "name": "Re:Learn Programming Misconception Taxonomy",
+    "version": "0.2-taxonomy-migration",
+    "difficulty_scale": "1 (introductory) to 5 (hard to detect and remediate)",
+    "language_note": "Examples use Python/C-style pseudocode. Misconceptions are language-agnostic unless stated.",
+    "categories": ["LOOPS", "ARRAYS", "CONDITIONALS", "FUNCTIONS", "RECURSION"],
+    "count": 25,
+    "canonical_id_format": "<DOMAIN>-<NUMBER>, for example LOOP-01",
+    "selection_statement": "These are recurring, evidence-informed novice programming misconceptions selected for diagnostic distinctness, observability, intervention value, and reassessment value. They are not a statistically ranked global top-25 list.",
+    "evidence_scope": "frequency_evidence describes the strength of support that a misconception family recurs in the cited programming-education literature or expert taxonomy. It never represents a universal prevalence percentage or global rank."
+  },
+  "evidence_sources": {
+    "S1": {"citation": "How Students (Mis)understand Conditionals and Loops -- A Taxonomy", "url": "https://arxiv.org/abs/2605.26966", "scope": "Fine-grained taxonomy of novice difficulties in selection and iteration, built from prior research plus quiz and interview data."},
+    "S2": {"citation": "How to Design While Loops", "url": "https://arxiv.org/abs/2008.12375", "scope": "Beginning-student difficulty with termination and sequencing mutations in while loops."},
+    "S3": {"citation": "Vector Programming Using Structural Recursion", "url": "https://arxiv.org/abs/1805.05124", "scope": "Introductory vector/array indexing and interval-reasoning difficulties."},
+    "S4": {"citation": "Catalogs of C and Python Antipatterns by CS1 Students", "url": "https://arxiv.org/abs/2104.12542", "scope": "CS1 code analysis relating misconceptions to observable C and Python antipatterns."},
+    "S5": {"citation": "Anti-patterns in Students' Conditional Statements", "url": "https://arxiv.org/abs/2410.18989", "scope": "Observed conditional-statement antipatterns in introductory Python submissions."},
+    "S6": {"citation": "An Inquisitive Code Editor for Addressing Novice Programmers' Misconceptions of Program Behavior", "url": "https://arxiv.org/abs/2102.06098", "scope": "Misconception-aware programming support grounded in students' predictions about program behavior."}
+  },
+  "misconceptions": [
+    {
+      "misconception_id": "LOOP-01",
+      "name": "Off-by-one errors",
+      "category": "LOOPS",
+      "concept": "Loop boundary inclusivity (strict vs non-strict comparison in the loop condition)",
+      "short_definition": "The loop runs exactly one iteration too many or too few because the student misjudges whether the final bound value is included.",
+      "detailed_explanation": "The student has the right overall loop structure, correct variable, and correct direction, but picks < vs <= (or > vs >=) incorrectly relative to the intended iteration count. The error is only about whether the endpoint is included. Distinguish from LOOP-02 (condition tests the wrong thing entirely), LOOP-03 (wrong starting value is the cause), and ARR-07 (specific to array length vs last index).",
+      "common_symptoms": [
+        "Output has one extra or one missing item (e.g. prints 1..10 when asked for 1..9)",
+        "Sum or count is off by exactly one term",
+        "Fixing it by trial: changing < to <= and back until the output looks right",
+        "Correct on large inputs by eye but wrong at boundary values"
+      ],
+      "incorrect_reasoning_examples": [
+        "'for i in range(1, n) will include n, because it goes from 1 to n.'",
+        "'To print 5 stars I need i <= 5 starting at 0.' (gives 6 stars)",
+        "'while count < 10 runs ten times' when count starts at 1 (runs nine)."
+      ],
+      "correct_reasoning": "Iteration count = (end - start) for a half-open range [start, end), and (end - start + 1) for a closed range. Decide first whether the end value is included, then choose the operator, then verify by tracing the first and last iteration.",
+      "common_student_language": [
+        "it runs one too many times",
+        "I'm missing the last one",
+        "do I use less than or less than or equal",
+        "it works if I just add a plus one"
+      ],
+      "prerequisites": ["loop condition evaluation", "counting iterations", "half-open vs closed ranges"],
+      "difficulty": 2,
+      "intervention_goal": "Student can compute iteration count from start, end, and operator, and verifies boundary iterations by tracing the first and last pass instead of adjusting operators by guessing.",
+      "distinguish_from": ["LOOP-02", "LOOP-03", "ARR-07", "ARR-08"],
+      "error_type": "boundary",
+      "frequency_evidence": "high",
+      "evidence_basis": "mixed",
+      "evidence_source_ids": ["S1", "S4"],
+      "evidence_notes": "Loop-boundary difficulties recur in control-flow taxonomies and CS1 code-error catalogs; this label is scoped to a one-iteration endpoint mismatch, not a prevalence rank.",
+      "diagnostic_signals": ["A trace or output has exactly one extra or missing iteration at an endpoint.", "The loop condition differs from a valid condition only by strict versus inclusive comparison.", "Student language explicitly treats a stop value as included or excluded incorrectly."],
+      "counter_signals": ["The loop starts at the wrong value, suggesting LOOP-03.", "The condition tests the wrong variable or direction, suggesting LOOP-02.", "The failure only occurs while indexing an array, where ARR-07 or ARR-08 may explain it better."]
+    },
+    {
+      "misconception_id": "LOOP-02",
+      "name": "Incorrect loop condition",
+      "category": "LOOPS",
+      "concept": "Loop condition as a continue-while predicate",
+      "short_definition": "The condition tests the wrong variable, wrong direction, or states the stopping condition instead of the continuing condition.",
+      "detailed_explanation": "The student writes a condition that does not express when the loop should keep running. Typical form: describing when to stop (while x == target) rather than when to continue (while x != target), testing a variable the loop body never changes, or reversing the comparison direction. The difference from LOOP-01 is that the error is not off by one; the loop can run zero times, the wrong number of times by a large margin, or never. Difference from LOOP-05: here the faulty artifact is the condition itself.",
+      "common_symptoms": [
+        "Loop body never executes",
+        "Loop runs far too many times, or stops immediately",
+        "Condition mentions a variable unrelated to what is being accumulated",
+        "Uses == in a while condition where a range comparison is needed"
+      ],
+      "incorrect_reasoning_examples": [
+        "'while i == 10: ... because I want it to run until i is 10.'",
+        "'while i > 0' for a counter that counts up from 0.",
+        "'while found == False' but the loop never sets found, yet student believes it tracks the search."
+      ],
+      "correct_reasoning": "The while condition answers: should another iteration happen? It is checked before every pass and must be True at the start for the loop to run at all. Write it as the negation of the stopping condition, and confirm it is True on the first pass and False after the last.",
+      "common_student_language": [
+        "I said run until it equals 10",
+        "the loop never runs",
+        "it stops right away",
+        "while it's not done"
+      ],
+      "prerequisites": ["boolean expressions", "while loop execution model", "relational operators"],
+      "difficulty": 2,
+      "intervention_goal": "Student phrases loop conditions as 'keep going while ...' and can state the truth value of the condition at the first check and at the exit.",
+      "distinguish_from": ["LOOP-01", "LOOP-04", "LOOP-05"],
+      "error_type": "control_flow",
+      "frequency_evidence": "high",
+      "evidence_basis": "literature",
+      "evidence_source_ids": ["S1", "S2"],
+      "evidence_notes": "Control-flow research and while-loop design work describe beginner difficulty expressing a continue-while predicate; evidence does not rank this item globally.",
+      "diagnostic_signals": ["The condition is false on the initial state when the task requires iterations.", "The condition uses an unrelated or never-mutated variable.", "A student describes a stopping condition but writes it without negating it for while semantics."],
+      "counter_signals": ["A correct predicate has only an inclusive/exclusive endpoint error, suggesting LOOP-01.", "The predicate is sound but an update prevents termination, suggesting LOOP-04.", "The code is correct but the explanation of when conditions are checked is wrong, suggesting LOOP-05."]
+    },
+    {
+      "misconception_id": "LOOP-03",
+      "name": "Incorrect initialization",
+      "category": "LOOPS",
+      "concept": "State setup before a loop (counters, accumulators, running max/min)",
+      "short_definition": "The variable's starting value is wrong for the task, or is reset inside the loop so state does not carry across iterations.",
+      "detailed_explanation": "The student mis-sets state that the loop depends on. Forms: accumulator initialized inside the body, running max initialized to 0 (breaks for all-negative data), running min initialized to 0, product initialized to 0, a flag initialized to the wrong truth value, or a variable not initialized at all. The loop structure and condition are fine; the bug lives before the loop or on its first line. Distinguish from LOOP-01, where the bound is wrong rather than the initial value of data state.",
+      "common_symptoms": [
+        "Result only reflects the last element",
+        "Sum is always 0 or equals the last value",
+        "Max or min is wrong for negative numbers or large numbers",
+        "Product is always 0",
+        "Variable-referenced-before-assignment or garbage values"
+      ],
+      "incorrect_reasoning_examples": [
+        "'I put total = 0 inside the loop so it starts clean each time.'",
+        "'max = 0 is fine as a starting point.' (fails for [-5, -2])",
+        "'product = 0 since nothing has been multiplied yet.'"
+      ],
+      "correct_reasoning": "Initial value must be the identity for the operation (0 for sum, 1 for product) or a real element of the data (first element for max/min). Initialization belongs before the loop; anything inside the body re-executes every iteration.",
+      "common_student_language": [
+        "why does it only show the last value",
+        "total keeps resetting",
+        "I started it at zero, that's neutral",
+        "the max is wrong with negatives"
+      ],
+      "prerequisites": ["variables and assignment", "accumulator pattern", "identity elements"],
+      "difficulty": 2,
+      "intervention_goal": "Student chooses initial values by operation identity or first-element seeding and places initialization outside the loop body.",
+      "distinguish_from": ["LOOP-01", "LOOP-04", "ARR-09"],
+      "error_type": "procedural",
+      "frequency_evidence": "medium",
+      "evidence_basis": "mixed",
+      "evidence_source_ids": ["S2", "S4"],
+      "evidence_notes": "State setup and sequencing mutations are recurring CS1 concerns; this label is retained because its identity-value intervention differs from a condition or update intervention.",
+      "diagnostic_signals": ["An accumulator is initialized or reset inside the loop body.", "A product begins at zero, or max/min begins with a sentinel that contradicts valid input values.", "The body and bounds are otherwise consistent while the result reflects only the last iteration."],
+      "counter_signals": ["The result differs by one processed item, suggesting LOOP-01 or ARR-08.", "The wrong array slot is written despite sound accumulator setup, suggesting ARR-09.", "State never advances because of an update problem, suggesting LOOP-04."]
+    },
+    {
+      "misconception_id": "LOOP-04",
+      "name": "Incorrect loop update/increment",
+      "category": "LOOPS",
+      "concept": "Loop variable update step and its placement",
+      "short_definition": "The step that advances the loop state is missing, wrong in size or direction, applied to the wrong variable, or only happens on some paths.",
+      "detailed_explanation": "The student's update statement is faulty. Examples: i += 2 where every element is needed, i -= 1 in an ascending loop, incrementing a different variable than the one in the condition, or placing i += 1 inside an if-branch so it is skipped on other paths. Distinguish from LOOP-05: LOOP-04 is a concrete wrong update statement; LOOP-05 is a reasoning failure about whether any update drives the condition false.",
+      "common_symptoms": [
+        "Elements are skipped, or processed twice",
+        "Loop stalls on the same value (when update is conditional)",
+        "Counter moves away from the bound",
+        "Hang only on certain inputs, those that take the branch lacking the update"
+      ],
+      "incorrect_reasoning_examples": [
+        "'I increment j at the end, so the loop will progress.' (condition tests i)",
+        "'if arr[i] > 0: ...; i += 1' placed inside the if, 'it moves on when it's done.'",
+        "'i -= 1 will count to n.'"
+      ],
+      "correct_reasoning": "Every iteration must move the variable(s) in the condition toward making it False. The update must execute on every path through the body, step size must match which elements are needed, and it must act on the variable the condition reads.",
+      "common_student_language": [
+        "I forgot to increment",
+        "it keeps checking the same one",
+        "it skips every other element",
+        "I'm counting the wrong way"
+      ],
+      "prerequisites": ["loop execution trace", "control flow with branches", "increment operators"],
+      "difficulty": 2,
+      "intervention_goal": "Student verifies that the update statement runs on all branches, modifies the variable used in the condition, and moves it in the correct direction by the correct step.",
+      "distinguish_from": ["LOOP-02", "LOOP-05", "ARR-08"],
+      "error_type": "control_flow",
+      "frequency_evidence": "high",
+      "evidence_basis": "literature",
+      "evidence_source_ids": ["S2", "S4"],
+      "evidence_notes": "Loop design research explicitly treats sequencing mutations and progress as a novice challenge; this item captures the observable update defect rather than a general termination belief.",
+      "diagnostic_signals": ["The variable used by the condition is not modified on every reachable iteration path.", "The update moves away from the bound or changes a different variable.", "A trace repeats a state or skips values by an unintended fixed step."],
+      "counter_signals": ["The update is correct but the predicate is wrong, suggesting LOOP-02.", "No concrete update defect appears but the learner cannot explain termination, suggesting LOOP-05.", "The index update is valid but the range stop is wrong, suggesting ARR-08."]
+    },
+    {
+      "misconception_id": "LOOP-05",
+      "name": "Infinite-loop reasoning",
+      "category": "LOOPS",
+      "concept": "Termination argument (progress toward a False condition)",
+      "short_definition": "The student cannot reason about whether a loop terminates, assuming it ends because the code 'looks finished' or that the condition is rechecked continuously mid-body.",
+      "detailed_explanation": "This is a reasoning-level error rather than a single wrong statement. Students believe the loop condition is monitored continuously and exits the instant it becomes False in the middle of the body, believe a break or exit is implied, or fail to trace whether state ever changes. Also covers inability to recognize a loop that cannot terminate even when asked directly. Distinguish from LOOP-04: a student with LOOP-04 may write bad updates but still reason properly when tracing; a student with LOOP-05 cannot justify termination in either case.",
+      "common_symptoms": [
+        "Program hangs, student says 'but the condition will be false eventually'",
+        "Expects remaining body statements to be skipped once the condition would be False",
+        "Cannot say what changes between iterations",
+        "Unsure how while True with break differs from a counted loop"
+      ],
+      "incorrect_reasoning_examples": [
+        "'Once x reaches 10 the loop stops, even in the middle of the body.'",
+        "'The loop ends when the data runs out.' (while loop on a variable not tied to data)",
+        "'It can't be infinite, my condition has a number in it.'"
+      ],
+      "correct_reasoning": "The condition is evaluated only at the top of each iteration; the entire body runs even if the condition becomes False midway. A loop terminates only if each iteration changes state so the condition eventually becomes False; identify the quantity that strictly progresses and its bound.",
+      "common_student_language": [
+        "why doesn't it just stop",
+        "it should end by itself",
+        "the loop knows when to quit",
+        "it froze"
+      ],
+      "prerequisites": ["loop execution model", "state tracing", "break statement semantics"],
+      "difficulty": 4,
+      "intervention_goal": "Student states the loop invariant of progress (what quantity changes, toward which bound) and correctly explains that the condition is checked only between iterations.",
+      "distinguish_from": ["LOOP-02", "LOOP-04", "REC-23"],
+      "error_type": "reasoning",
+      "frequency_evidence": "high",
+      "evidence_basis": "literature",
+      "evidence_source_ids": ["S1", "S2"],
+      "evidence_notes": "While-loop work identifies termination reasoning as a central beginning-student difficulty; this record targets an explanatory model, not only a non-terminating artifact.",
+      "diagnostic_signals": ["The learner asserts a loop will stop without identifying state that changes toward a false predicate.", "They predict a condition interrupts the middle of an already-started body.", "They cannot provide a finite trace or a progress measure for a loop."],
+      "counter_signals": ["A specific missing or reversed update is visible, suggesting LOOP-04.", "A specific incorrect predicate is visible, suggesting LOOP-02.", "The same progress failure occurs in self-calls with a base case, suggesting REC-23."]
+    },
+    {
+      "misconception_id": "ARR-06",
+      "name": "Zero-based indexing misunderstanding",
+      "category": "ARRAYS",
+      "concept": "Mapping ordinal position to index (index = position - 1)",
+      "short_definition": "The student believes the first element lives at index 1 and the nth element at index n.",
+      "detailed_explanation": "The student equates ordinal position with index. Consequences appear at the start of the array: arr[1] is treated as the first element, arr[0] as 'nothing' or an error, loops begin at 1, and the 'third element' is read from arr[3]. Distinguish from ARR-07: ARR-06 concerns the start/ordinal mapping; ARR-07 concerns the relationship between the array's length and its last valid index. It also differs from ARR-10, which is about index vs stored value.",
+      "common_symptoms": [
+        "Loops from 1, silently skipping the first element",
+        "Reads arr[n] for the nth element, hitting out-of-range at the end",
+        "Surprise that arr[0] holds data",
+        "Off-by-one on the front side only"
+      ],
+      "incorrect_reasoning_examples": [
+        "'arr[1] is the first item, arr[0] is empty.'",
+        "'The 5th element is arr[5].'",
+        "'for i in range(1, len(arr)+1): print(arr[i])'"
+      ],
+      "correct_reasoning": "Index is an offset from the start: the first element is 0 elements away, so it is at index 0. Element in position k (1-based) is at index k - 1.",
+      "common_student_language": [
+        "the first element is arr[1]",
+        "why does it start at zero",
+        "arr[0] is weird",
+        "the third item should be index 3"
+      ],
+      "prerequisites": ["array structure", "ordinal vs cardinal numbers", "offset notion of index"],
+      "difficulty": 1,
+      "intervention_goal": "Student converts correctly between 1-based position and 0-based index and explains the index as distance from the start.",
+      "distinguish_from": ["ARR-07", "ARR-08", "ARR-10"],
+      "error_type": "conceptual",
+      "frequency_evidence": "high",
+      "evidence_basis": "literature",
+      "evidence_source_ids": ["S3", "S4"],
+      "evidence_notes": "Introductory vector/indexing work and CS1 code catalogs support indexing as a recurring novice difficulty; this item concerns ordinal-position mapping only.",
+      "diagnostic_signals": ["The first element is accessed as index 1 or index 0 is described as empty.", "The nth element is accessed with index n.", "A traversal starts at 1 without a task-specific sentinel reason."],
+      "counter_signals": ["The learner starts at zero but accesses length as an index, suggesting ARR-07.", "The traversal omits or exceeds an endpoint while ordinal mapping is correct, suggesting ARR-08.", "The learner treats an index variable as a stored value, suggesting ARR-10."]
+    },
+    {
+      "misconception_id": "ARR-07",
+      "name": "Array length vs last valid index",
+      "category": "ARRAYS",
+      "concept": "Relationship len = last_index + 1",
+      "short_definition": "The student treats length as the largest valid index, so arr[len] is accessed as the last element.",
+      "detailed_explanation": "The student correctly knows indexing is zero-based in principle, but ties the last element to the length value: arr[len(arr)] as 'the last', loops to <= len, or sets an upper bound of len. The diagnostic signature is an out-of-range error or exception at the END of the array while the start is handled correctly. Contrast with ARR-06 (start-of-array error) and ARR-08 (bounds chosen wrongly for an algorithm even with the length-last-index relationship understood).",
+      "common_symptoms": [
+        "IndexError / ArrayIndexOutOfBounds on the final access",
+        "Uses arr[len(arr)] to get the last element",
+        "Loop with i <= len(arr)",
+        "Student fixes it by using len(arr)-1 without being able to say why"
+      ],
+      "incorrect_reasoning_examples": [
+        "'The array has 5 elements so the last one is arr[5].'",
+        "'for (i = 0; i <= arr.length; i++)'",
+        "'len - 1 is just a Python trick for avoiding errors.'"
+      ],
+      "correct_reasoning": "With indices 0..n-1 there are n valid positions, so the last valid index is length - 1 and index == length is always out of range.",
+      "common_student_language": [
+        "index out of range at the end",
+        "the last one is at length",
+        "why minus one",
+        "it crashes on the final element"
+      ],
+      "prerequisites": ["zero-based indexing", "array length property", "bounds of valid indices"],
+      "difficulty": 2,
+      "intervention_goal": "Student states that valid indices span 0 to length - 1 and derives the last-index expression without relying on memorized patterns.",
+      "distinguish_from": ["ARR-06", "ARR-08", "LOOP-01"],
+      "error_type": "boundary",
+      "frequency_evidence": "medium",
+      "evidence_basis": "literature",
+      "evidence_source_ids": ["S3", "S4"],
+      "evidence_notes": "Index-interval research and student-code catalogs motivate separating last-valid-index reasoning from first-index reasoning; no universal frequency claim is made.",
+      "diagnostic_signals": ["Code reads or writes arr[len(arr)] as the last element.", "The learner states that array length is itself a valid index.", "A boundary trace is correct at index zero but fails only at the final element."],
+      "counter_signals": ["The learner believes the first element is index one, suggesting ARR-06.", "The expression uses a wrong loop stop despite correct length knowledge, suggesting ARR-08.", "A generic counted loop has the same endpoint issue without array access, suggesting LOOP-01."]
+    },
+    {
+      "misconception_id": "ARR-08",
+      "name": "Incorrect traversal bounds",
+      "category": "ARRAYS",
+      "concept": "Choosing loop range to match what the algorithm touches (neighbors, pairs, subranges)",
+      "short_definition": "The student picks start and end bounds that do not cover the intended elements or that step outside the array for the access pattern used inside the loop.",
+      "detailed_explanation": "The student understands indexing but chooses bounds without accounting for the body's access pattern. Common forms: using arr[i+1] while looping to len-1 (out of range), comparing neighbors but skipping the first pair, nested loops where inner j starts at 0 instead of i+1 (duplicates pairs or self comparison), partial traversal that stops at len/2 without handling the middle, or reverse loops that stop before index 0. Differs from ARR-07 because the student can state the last valid index but fails to adjust bounds for offsets.",
+      "common_symptoms": [
+        "Out-of-range on arr[i+1] or arr[i-1]",
+        "First or last pair/element never processed",
+        "Pair comparison includes element with itself or counts pairs twice",
+        "Reverse loop never processes index 0"
+      ],
+      "incorrect_reasoning_examples": [
+        "'for i in range(len(arr)): if arr[i] > arr[i+1]' because 'I need to cover every index.'",
+        "'for i in range(len(arr)-1, 0, -1)' so 'it goes down to zero' (excludes 0).",
+        "'Inner loop j from 0 to n, to compare everything.'"
+      ],
+      "correct_reasoning": "Bounds are derived from the body: if the body reads i+k, the last safe i is last_index - k; if it reads i-k, the first safe i is k. Write out the set of indices the body touches and make the loop range exactly cover them.",
+      "common_student_language": [
+        "it crashes on i plus one",
+        "it never compares the last two",
+        "I need to stop one early",
+        "it compares a number with itself"
+      ],
+      "prerequisites": ["valid index range", "range() / for-loop bounds", "nested loops"],
+      "difficulty": 3,
+      "intervention_goal": "Student enumerates the indices read in the loop body and derives start and stop bounds so every intended access is in range and no unintended access occurs.",
+      "distinguish_from": ["ARR-06", "ARR-07", "LOOP-01"],
+      "error_type": "boundary",
+      "frequency_evidence": "high",
+      "evidence_basis": "mixed",
+      "evidence_source_ids": ["S3", "S4"],
+      "evidence_notes": "Array interval reasoning is documented as difficult for beginners and observable in code. This record is retained separately because access expressions such as i+1 change the valid traversal interval.",
+      "diagnostic_signals": ["Loop bounds cause an out-of-range access in arr[i+1], pairwise, or reverse traversal code.", "The body accesses a shifted index but the loop uses a default full-array range.", "The learner cannot list the first and final concrete indices accessed."],
+      "counter_signals": ["Only the first-element ordinal is wrong, suggesting ARR-06.", "Only len(arr) versus len(arr)-1 is misunderstood, suggesting ARR-07.", "The code has no array access and only a generic count endpoint mismatch, suggesting LOOP-01."]
+    },
+    {
+      "misconception_id": "ARR-09",
+      "name": "Incorrect element modification",
+      "category": "ARRAYS",
+      "concept": "Value vs reference semantics when changing array contents",
+      "short_definition": "The student expects changes to a loop variable, copy, or overwritten slot to update the array as intended.",
+      "detailed_explanation": "The student fails to model what is being changed. Forms: assigning to the for-each variable (for x in arr: x = x*2) and expecting the array to change; b = a assuming an independent copy; shifting elements by overwriting without saving the value (arr[i] = arr[i+1] left to right in wrong direction, losing data); swapping with two assignments and no temporary. Differs from ARR-10, where the student confuses what an index means rather than what an assignment affects.",
+      "common_symptoms": [
+        "Array unchanged after a loop that 'doubles' every element",
+        "Modifying one list unexpectedly changes another (or the reverse, copy expected to alias)",
+        "After a swap both positions hold the same value",
+        "Shifted array has duplicated values"
+      ],
+      "incorrect_reasoning_examples": [
+        "'x is the element, so x = x * 2 updates it.'",
+        "'b = a makes me a backup, so I can edit a freely.'",
+        "'a[i] = a[j]; a[j] = a[i] swaps them.'"
+      ],
+      "correct_reasoning": "A for-each variable is a separate name holding a value (or reference) for the current element; reassigning it does not write to the array. To change the array, assign to arr[i]. Copies require an explicit copy; swaps and shifts need the overwritten value saved first or traversal in a safe order.",
+      "common_student_language": [
+        "I changed it but the list didn't change",
+        "my copy changed too",
+        "both values became the same",
+        "why didn't the loop update the array"
+      ],
+      "prerequisites": ["assignment semantics", "for-each vs indexed loops", "references vs copies", "temporary variables"],
+      "difficulty": 3,
+      "intervention_goal": "Student predicts which variable or memory slot each assignment changes and uses indexed assignment, explicit copies, and temporaries correctly.",
+      "distinguish_from": ["ARR-10", "FUNC-19", "FUNC-20"],
+      "error_type": "semantic",
+      "frequency_evidence": "medium",
+      "evidence_basis": "expert_taxonomy",
+      "evidence_source_ids": ["S4", "S6"],
+      "evidence_notes": "Student code catalogs and misconception-aware program-behavior work support tracking observable state-model errors; this record is kept for interventions about mutation targets and aliasing.",
+      "diagnostic_signals": ["An assignment changes the array object or wrong slot when a single element was intended.", "A copy is assumed where an alias is created, or a temporary is omitted during a swap.", "A trace shows the correct index but an unintended mutation outcome."],
+      "counter_signals": ["The wrong quantity is used as a subscript, suggesting ARR-10.", "The unexpected value arises from local/global name visibility, suggesting FUNC-19.", "The wrong value is passed between calls without array mutation, suggesting FUNC-20."]
+    },
+    {
+      "misconception_id": "ARR-10",
+      "name": "Confusing an array index with an array value",
+      "category": "ARRAYS",
+      "concept": "Distinguishing position (i) from content (arr[i])",
+      "short_definition": "The student uses i where arr[i] is needed (or the reverse), or treats a stored value as a position.",
+      "detailed_explanation": "The student conflates position and content. Examples: returning i when the task asks for the maximum value, adding i to a sum instead of arr[i], comparing i to a target when arr[i] should be compared, using arr[value] as if values were indices, or assuming that the largest index holds the largest value. Occurs in arrays holding integers, where the two are easily mixed up. Not about boundary errors: indices may all be in range but the wrong thing is used.",
+      "common_symptoms": [
+        "Result is a position when a value was requested (or vice versa)",
+        "Sum equals 0+1+2+... instead of the data sum",
+        "if i == target instead of if arr[i] == target",
+        "Works by coincidence when array is [0,1,2,3]"
+      ],
+      "incorrect_reasoning_examples": [
+        "'max = i if arr[i] > arr[max]' then returns max as 'the biggest number'.",
+        "'total += i to add up the list.'",
+        "'if i == 7' to check whether 7 is in the list."
+      ],
+      "correct_reasoning": "An index names a slot; arr[index] is what is stored there. State, for every variable, whether it holds a position or a value, and use arr[i] to go from the first to the second.",
+      "common_student_language": [
+        "I got the position not the number",
+        "it returns 3 but the max is 40",
+        "is i the item or the place",
+        "it sums the indexes"
+      ],
+      "prerequisites": ["array indexing", "variable types of role (index vs value)", "loop variable meaning"],
+      "difficulty": 2,
+      "intervention_goal": "Student labels each variable as index or value and applies arr[i] vs i correctly when searching, summing, and returning results.",
+      "distinguish_from": ["ARR-06", "ARR-09", "FUNC-16"],
+      "error_type": "conceptual",
+      "frequency_evidence": "medium",
+      "evidence_basis": "mixed",
+      "evidence_source_ids": ["S3", "S4"],
+      "evidence_notes": "Index reasoning is a documented beginner challenge; this label addresses the distinct representation error of confusing a position with the value stored at that position.",
+      "diagnostic_signals": ["A comparison uses i where arr[i] is required, or subscripts with a data value unintentionally.", "The student returns an index when asked for a value, or vice versa, despite finding the correct position.", "Variable naming or explanation explicitly conflates position and element."],
+      "counter_signals": ["The error is only first/last index arithmetic, suggesting ARR-06 or ARR-07.", "The element is correct but writes mutate the wrong slot, suggesting ARR-09.", "The mismatch is between a caller argument and parameter rather than array data, suggesting FUNC-16."]
+    },
+    {
+      "misconception_id": "COND-11",
+      "name": "Assignment vs comparison",
+      "category": "CONDITIONALS",
+      "concept": "Assignment operator (=) vs equality operator (==)",
+      "short_definition": "The student uses = where == is required, or reads = as mathematical equality.",
+      "detailed_explanation": "The student treats = as 'is equal to' as in algebra. In conditions this produces if (x = 5), which assigns (and in C-like languages evaluates truthy), or a syntax error in Python. The misconception also shows in code outside conditionals, such as expecting a = b to create an ongoing equality or to be symmetric. Focus is the operator's semantics, not boolean structure (COND-12/13).",
+      "common_symptoms": [
+        "Condition is always true, and the variable's value changed unexpectedly",
+        "Syntax error in 'if x = 5' (Python)",
+        "Writes 5 = x",
+        "Expects a = b to keep a and b equal after b changes"
+      ],
+      "incorrect_reasoning_examples": [
+        "'if (x = 10) checks if x is 10.'",
+        "'a = b means a and b are the same from now on.'",
+        "'x == 5' used as a statement to set x."
+      ],
+      "correct_reasoning": "= is an action: evaluate the right side and store it in the left variable. == is a question that yields True/False and changes nothing. Conditions need questions.",
+      "common_student_language": [
+        "equals sign in the if",
+        "why two equals signs",
+        "it says x is 10 now",
+        "it's always true"
+      ],
+      "prerequisites": ["variables as storage", "boolean expressions", "operators"],
+      "difficulty": 1,
+      "intervention_goal": "Student distinguishes = (store) from == (test) and predicts the effect of each on program state and on the condition's value.",
+      "distinguish_from": ["COND-12", "COND-13", "FUNC-19"],
+      "error_type": "semantic",
+      "frequency_evidence": "medium",
+      "evidence_basis": "mixed",
+      "evidence_source_ids": ["S1", "S4", "S5"],
+      "evidence_notes": "Selection-focused taxonomies and introductory conditional-code studies motivate an explicit syntax/meaning distinction; language syntax determines which concrete signal is usable.",
+      "diagnostic_signals": ["A condition contains an assignment operator where the language permits or rejects it.", "The learner explains assignment as a question that tests equality.", "A variable's value changes immediately before an unexpected branch result."],
+      "counter_signals": ["Comparison operators are used correctly but operands or negation are wrong, suggesting COND-12.", "The issue is choosing AND versus OR, suggesting COND-13.", "The unexpected value stems from scope rather than a conditional expression, suggesting FUNC-19."]
+    },
+    {
+      "misconception_id": "COND-12",
+      "name": "Incorrect boolean logic",
+      "category": "CONDITIONALS",
+      "concept": "Negation, De Morgan equivalence, precedence, and boolean simplification",
+      "short_definition": "The student builds or transforms a compound condition incorrectly: wrong negation, wrong precedence, or incorrect equivalent forms.",
+      "detailed_explanation": "Targets manipulation of boolean expressions, not translating English. Examples: negating a && b as !a && !b, writing the else-condition of a compound if incorrectly, mixing && and || without parentheses and expecting left-to-right reading, comparing booleans redundantly (if flag == True) with wrong results, or applying ! to only part of an expression. Distinguish from COND-13, which concerns choosing AND vs OR from a natural-language description.",
+      "common_symptoms": [
+        "Else branch fires for unexpected inputs",
+        "Refactored condition behaves differently from the original",
+        "Precedence surprises: a || b && c evaluated as (a || b) && c",
+        "Negates only the first term"
+      ],
+      "incorrect_reasoning_examples": [
+        "'not (a and b) is the same as not a and not b.'",
+        "'x > 5 or x < 2 and y > 0 reads left to right.'",
+        "'If the if-condition is (age >= 18 and has_id), the else covers age < 18 and no id.'"
+      ],
+      "correct_reasoning": "!(A && B) equals !A || !B, and !(A || B) equals !A && !B. && binds tighter than ||. The negation of a compound condition is its complement over all input combinations; verify with a truth table.",
+      "common_student_language": [
+        "I just flipped everything",
+        "I negated both parts",
+        "why is the else running",
+        "I added not in front"
+      ],
+      "prerequisites": ["boolean operators", "truth tables", "operator precedence"],
+      "difficulty": 3,
+      "intervention_goal": "Student produces correct negations and equivalent rewrites of compound conditions and validates them with truth tables.",
+      "distinguish_from": ["COND-11", "COND-13", "COND-14"],
+      "error_type": "reasoning",
+      "frequency_evidence": "medium",
+      "evidence_basis": "literature",
+      "evidence_source_ids": ["S1", "S5"],
+      "evidence_notes": "Conditionals research documents varied selection misunderstandings. This label covers a malformed predicate or negation when the primary issue is not operator choice or branch order.",
+      "diagnostic_signals": ["A truth table or boundary trace disagrees with the intended predicate despite syntactically valid code.", "A negation is applied to only one part of a compound predicate when the whole condition was intended.", "Parentheses or relational comparisons produce an accepted set different from the learner's stated rule."],
+      "counter_signals": ["The learner used assignment instead of comparison, suggesting COND-11.", "The only incorrect decision is AND versus OR semantics, suggesting COND-13.", "Each condition is correct in isolation but a broad earlier branch shadows a later one, suggesting COND-14."]
+    },
+    {
+      "misconception_id": "COND-13",
+      "name": "Misunderstanding AND/OR",
+      "category": "CONDITIONALS",
+      "concept": "Mapping natural-language 'and', 'or', 'neither', 'between' to logical operators",
+      "short_definition": "The student selects AND or OR based on how English sounds rather than on the set of inputs that should satisfy the condition.",
+      "detailed_explanation": "The student translates words directly. Classic cases: 'x is 3 or 5' written as x == 3 or 5, 'x is not 3 or 5' written as x != 3 || x != 5 (always true), 'x is outside 0..10' written with && (impossible), 'x is between 0 and 10' written with ||. Also believes a sequence of conditions joined by 'and' should read as 'do this and also that' (confusing logic with sequencing). Different from COND-12 because the error arises when writing the first draft from a spoken requirement.",
+      "common_symptoms": [
+        "Range check that is never true or always true",
+        "x == 3 or 5 accepted by interpreter but always truthy",
+        "Student says 'and' means more values match",
+        "Test passes for one value and fails for the rest of the intended set"
+      ],
+      "incorrect_reasoning_examples": [
+        "'x < 0 and x > 10 means x is outside the range.'",
+        "'x != 3 or x != 5 means x is neither.'",
+        "'if x == 3 or 5' because 'that is how you say it.'"
+      ],
+      "correct_reasoning": "AND shrinks the set of accepted inputs (both must hold), OR widens it (either may hold). Pick the operator by asking which inputs should pass: 'neither A nor B' needs != A AND != B; 'outside a..b' needs < a OR > b.",
+      "common_student_language": [
+        "it sounds like and",
+        "but I said between",
+        "this is always true",
+        "or 5 just checks five too"
+      ],
+      "prerequisites": ["boolean operators", "set interpretation of conditions", "relational operators"],
+      "difficulty": 3,
+      "intervention_goal": "Student chooses AND/OR by testing sample inputs against the intended accepted set and corrects x == a or b style expressions.",
+      "distinguish_from": ["COND-12", "COND-14", "COND-15"],
+      "error_type": "conceptual",
+      "frequency_evidence": "medium",
+      "evidence_basis": "literature",
+      "evidence_source_ids": ["S1", "S5"],
+      "evidence_notes": "Conditional-statement analyses support treating Boolean-connective choice as separately diagnosable when it changes the intended accepted input set.",
+      "diagnostic_signals": ["Code uses AND where satisfying either condition should pass, or OR where both constraints are required.", "A form such as x == a or b appears in a language where the second operand is not another comparison.", "Counterexample inputs show the accepted set is an intersection instead of a union, or the reverse."],
+      "counter_signals": ["The connective is correct but a comparison or negation is malformed, suggesting COND-12.", "The correct branches exist but order makes one unreachable, suggesting COND-14.", "The intended cases are not represented at all, suggesting COND-15."]
+    },
+    {
+      "misconception_id": "COND-14",
+      "name": "Incorrect condition ordering",
+      "category": "CONDITIONALS",
+      "concept": "Sequential evaluation in if / elif chains and short-circuit order",
+      "short_definition": "The student places conditions in an order where an earlier, broader test captures cases meant for a later one, or evaluates a guarded expression before its guard.",
+      "detailed_explanation": "The student assumes order is irrelevant, or that every branch is considered independently. In if/elif/else, the first true branch wins. Typical: grade >= 60 before grade >= 90, so 95 is labeled D. Also: checking arr[i] before i < len(arr), or x.length before x is not None. Another form is writing a series of independent ifs where else-if was needed, so multiple branches fire. Not about missing inputs (COND-15), but about reachability of branches.",
+      "common_symptoms": [
+        "A branch is never reached",
+        "Higher values receive the lowest category",
+        "Multiple messages printed for one input (separate ifs)",
+        "Null or index error on a check that appears protected"
+      ],
+      "incorrect_reasoning_examples": [
+        "'if score >= 60: D; elif score >= 90: A. It checks each one.'",
+        "'if a[i] == x and i < n' because 'both must be true anyway.'",
+        "'Three ifs in a row are the same as if/elif/else.'"
+      ],
+      "correct_reasoning": "Chains are tested top to bottom and stop at the first true condition; order the tests from most specific to most general (or make them mutually exclusive). Short-circuit operators evaluate left to right, so put guards first.",
+      "common_student_language": [
+        "the second condition never runs",
+        "everything gets the same grade",
+        "it prints both",
+        "but I checked for it below"
+      ],
+      "prerequisites": ["if/elif/else execution", "short-circuit evaluation", "mutually exclusive conditions"],
+      "difficulty": 3,
+      "intervention_goal": "Student traces which branch fires for sample inputs, orders conditions from specific to general, and places guard checks before the guarded access.",
+      "distinguish_from": ["COND-12", "COND-13", "COND-15"],
+      "error_type": "control_flow",
+      "frequency_evidence": "high",
+      "evidence_basis": "literature",
+      "evidence_source_ids": ["S1", "S5"],
+      "evidence_notes": "Studies of student conditional antipatterns report confusion around else/nesting and support a separate branch-reachability intervention; this is not asserted as a universal rank.",
+      "diagnostic_signals": ["A broad earlier branch makes a later specific branch unreachable.", "An else binds to a different if than the learner predicts, or nesting changes branch reachability.", "A guard for an invalid value appears after an access that requires the guard."],
+      "counter_signals": ["Branch order is sound but a condition's Boolean meaning is wrong, suggesting COND-12 or COND-13.", "A required boundary case has no branch at all, suggesting COND-15.", "The code fails due to a syntax error before control flow can be observed."]
+    },
+    {
+      "misconception_id": "COND-15",
+      "name": "Missing edge cases",
+      "category": "CONDITIONALS",
+      "concept": "Boundary, empty, and degenerate inputs in conditional logic",
+      "short_definition": "The student's conditions handle typical inputs but leave gaps at boundaries, ties, zero, empty, or invalid values.",
+      "detailed_explanation": "The logic is correct for the middle of the input space but silent or wrong for unconsidered points: equality at the boundary (age > 18 for 'adult'), zero, negatives, empty collection, single element, duplicates, None/null, ties for max. Unlike COND-14, branch order is fine; unlike LOOP-01, the focus is classification of inputs. Signature: tests supplied by student cover only 'normal' values.",
+      "common_symptoms": [
+        "Boundary value gets the wrong category",
+        "Crash or wrong answer on empty list or zero",
+        "No else/default branch; some inputs fall through with no result",
+        "Student tests only with one or two happy-path inputs"
+      ],
+      "incorrect_reasoning_examples": [
+        "'age > 18 is adult, 18 is obviously not the issue.'",
+        "'The list will always have at least one element.'",
+        "'If it's not positive it must be negative.' (zero ignored)"
+      ],
+      "correct_reasoning": "Partition the input domain explicitly, including boundaries, zero, empty, and invalid cases, and ensure every partition leads to a defined outcome. Test at, just below, and just above each boundary.",
+      "common_student_language": [
+        "I didn't think of that case",
+        "it works for my example",
+        "what if it's zero",
+        "nothing gets printed for some inputs"
+      ],
+      "prerequisites": ["relational operators", "input domain partitioning", "test case design"],
+      "difficulty": 2,
+      "intervention_goal": "Student enumerates boundary, empty, and degenerate inputs before coding and confirms each leads to a defined branch.",
+      "distinguish_from": ["COND-12", "COND-14", "ARR-07"],
+      "error_type": "boundary",
+      "frequency_evidence": "medium",
+      "evidence_basis": "expert_taxonomy",
+      "evidence_source_ids": ["S1", "S4", "S5"],
+      "evidence_notes": "This is retained for diagnostic value: it concerns an omitted input partition and calls for case-generation practice, rather than a wrong existing Boolean expression.",
+      "diagnostic_signals": ["Tests fail only for empty, zero, equality, or singleton inputs not represented in a branch.", "The learner cannot state behavior for a boundary input before executing code.", "A branch set covers ordinary values but leaves a documented input-domain partition undefined."],
+      "counter_signals": ["A boundary branch exists but uses an incorrect comparison, suggesting COND-12.", "A valid specific branch is shadowed by an earlier broad branch, suggesting COND-14.", "The edge case is an out-of-range array index rather than a missing conditional case, suggesting ARR-07 or ARR-08."]
+    },
+    {
+      "misconception_id": "FUNC-16",
+      "name": "Parameter vs argument confusion",
+      "category": "FUNCTIONS",
+      "concept": "Binding of call-site arguments to definition-site parameters",
+      "short_definition": "The student mixes up the placeholder names in a function definition with the actual values passed in a call, expecting names or global variables to bind automatically.",
+      "detailed_explanation": "The student believes parameter names must match the names of variables at the call site, that parameters read from existing outer variables with the same name, or that argument order does not matter. Also: re-assigning the parameter and expecting the caller's variable to change (for immutable values), defining parameters but also overwriting them with input(). Differs from FUNC-19 because the issue is argument-to-parameter binding, not general variable lifetime.",
+      "common_symptoms": [
+        "Calls f() without arguments expecting it to use a same-named variable",
+        "Swapped arguments produce wrong result without the student noticing",
+        "Renaming a variable at call site 'breaks' the function in the student's mind",
+        "Expects modifying a parameter to update the caller's variable"
+      ],
+      "incorrect_reasoning_examples": [
+        "'def area(width, height) will use the width and height I defined above.'",
+        "'I have to call area(width, height) with exactly those names.'",
+        "'n = n + 1 inside the function changes the n I passed.'"
+      ],
+      "correct_reasoning": "Parameters are local names created at call time and bound by position (or keyword) to the argument values; the names at the call site are irrelevant. The function receives values, so reassigning a parameter does not rebind the caller's variable.",
+      "common_student_language": [
+        "do the names have to match",
+        "I passed it but it still says undefined",
+        "what's the difference between parameter and argument",
+        "I changed it in the function"
+      ],
+      "prerequisites": ["function definition syntax", "variables and assignment", "call/definition distinction"],
+      "difficulty": 2,
+      "intervention_goal": "Student explains that arguments bind to parameters by position or keyword regardless of caller variable names and predicts effects of reassigning a parameter.",
+      "distinguish_from": ["FUNC-19", "FUNC-20", "ARR-10"],
+      "error_type": "conceptual",
+      "frequency_evidence": "medium",
+      "evidence_basis": "expert_taxonomy",
+      "evidence_source_ids": ["S4", "S6"],
+      "evidence_notes": "The record is retained as a distinct novice mental model of call-site binding, with observable call-shape evidence and a different intervention from scope.",
+      "diagnostic_signals": ["A function is called without required arguments because a same-named outer variable is expected to bind.", "Arguments are swapped or parameter names are treated as required caller names.", "The learner expects reassignment of a scalar parameter to rebind the caller variable."],
+      "counter_signals": ["Arguments bind correctly but a local name is used outside its call, suggesting FUNC-19.", "The arguments are correct but a returned intermediate value is ignored, suggesting FUNC-20.", "The confusion is index versus stored array value, suggesting ARR-10."]
+    },
+    {
+      "misconception_id": "FUNC-17",
+      "name": "Return vs print confusion",
+      "category": "FUNCTIONS",
+      "concept": "Output to the screen vs value passed back to the caller",
+      "short_definition": "The student believes printing inside a function makes the value available to the caller, or that return displays output.",
+      "detailed_explanation": "The student treats print and return as interchangeable. Using print inside a function and then assigning its result (x = f(2) gives None), expecting return to show output at the console, or calling a returning function as a statement and expecting display. The tell is the observation that the screen shows the right number but later arithmetic fails. Distinguish from FUNC-18, where return exists but is on the wrong path.",
+      "common_symptoms": [
+        "None printed or used in arithmetic (TypeError with NoneType)",
+        "Function result printed twice or not at all",
+        "No output when calling a returning function without print",
+        "Student says 'but it printed the right answer'"
+      ],
+      "incorrect_reasoning_examples": [
+        "'print(result) at the end gives the answer back to the code that called it.'",
+        "'return will show it on the screen.'",
+        "'total = add(2,3) + 1 fails, even though add printed 5.'"
+      ],
+      "correct_reasoning": "print sends text to the console for humans; return hands a value back to the call expression for the program to use. A function without return yields None; a returned value is not shown unless printed.",
+      "common_student_language": [
+        "it prints the right answer but the other part breaks",
+        "why does it say None",
+        "return doesn't show anything",
+        "I used print so it's done"
+      ],
+      "prerequisites": ["function calls as expressions", "console output", "None / void"],
+      "difficulty": 1,
+      "intervention_goal": "Student distinguishes console output from returned values and can say what value a call expression evaluates to.",
+      "distinguish_from": ["FUNC-18", "FUNC-20", "REC-25"],
+      "error_type": "conceptual",
+      "frequency_evidence": "medium",
+      "evidence_basis": "mixed",
+      "evidence_source_ids": ["S4", "S6"],
+      "evidence_notes": "Program-behavior misconceptions and student-code catalogs support separating visible console output from a value available to the caller; no population estimate is attached.",
+      "diagnostic_signals": ["A function prints the expected value but its call result is assigned or used as though numeric.", "The learner expects return to display text without an output operation.", "The failure involves None/void after a print-only function."],
+      "counter_signals": ["A return exists but is missing on a branch or prematurely exits a loop, suggesting FUNC-18.", "A returned value is available but is not passed into the next function, suggesting FUNC-20.", "The setting is recursive and intermediate calls fail to return their result, suggesting REC-25."]
+    },
+    {
+      "misconception_id": "FUNC-18",
+      "name": "Incorrect return path",
+      "category": "FUNCTIONS",
+      "concept": "Control flow and return across all execution paths",
+      "short_definition": "The student's function fails to return on some path, returns too early, or returns from inside a loop prematurely.",
+      "detailed_explanation": "A return statement exists, but control flow does not deliver the intended value on every path. Forms: return only inside an if with no fallthrough return (yields None), return inside the first loop iteration (e.g. 'return False' in a prime check on the first non-divisor), return placed before cleanup code that never runs, return indented inside the loop body when it belongs after. Differs from FUNC-17 (print vs return) and REC-25 (recursive call result not passed up).",
+      "common_symptoms": [
+        "Function returns None for some inputs",
+        "Loop-based check returns after one iteration",
+        "Code after return never executes",
+        "Result is correct for first element only"
+      ],
+      "incorrect_reasoning_examples": [
+        "'for d in range(2,n): if n % d == 0: return False else: return True' because 'it checks each one.'",
+        "'if x > 0: return 1' with no else, 'x not positive isn't relevant.'",
+        "'Statements after return still run before the function ends.'"
+      ],
+      "correct_reasoning": "return ends the function immediately. Trace each path from entry to exit: every path must reach a return of the right value. In searches, 'found' returns early inside the loop but 'not found' returns after the loop completes.",
+      "common_student_language": [
+        "it only checks the first one",
+        "returns None sometimes",
+        "the lines after return don't run",
+        "where do I put the return"
+      ],
+      "prerequisites": ["return semantics", "control flow tracing", "loop and conditional nesting"],
+      "difficulty": 3,
+      "intervention_goal": "Student traces each execution path of a function and places returns so every path yields the intended value, distinguishing early exit from post-loop return.",
+      "distinguish_from": ["FUNC-17", "FUNC-20", "REC-25"],
+      "error_type": "control_flow",
+      "frequency_evidence": "medium",
+      "evidence_basis": "expert_taxonomy",
+      "evidence_source_ids": ["S4", "S6"],
+      "evidence_notes": "This is a control-flow-specific record: a return is understood in principle but is unreachable, absent on a path, or placed too early; it needs path-tracing intervention.",
+      "diagnostic_signals": ["A function returns None on a reachable branch with no return statement.", "A return inside a loop causes output determined only by its first iteration.", "Statements after return are treated as reachable by the learner."],
+      "counter_signals": ["The function only prints and has no intended returned value model, suggesting FUNC-17.", "All paths return but calls are composed in the wrong order, suggesting FUNC-20.", "The missing propagation occurs specifically after a recursive subcall, suggesting REC-25."]
+    },
+    {
+      "misconception_id": "FUNC-19",
+      "name": "Variable scope misunderstanding",
+      "category": "FUNCTIONS",
+      "concept": "Lifetime and visibility of local vs global variables",
+      "short_definition": "The student expects local variables to be visible outside the function, values to persist between calls, or same-named variables in different scopes to be the same variable.",
+      "detailed_explanation": "Covers: using a variable defined inside a function after the call (NameError), expecting local counters to remember values across calls, assuming assignment to a name inside a function updates a global of the same name (creates a new local instead; UnboundLocalError when read first), and thinking a loop variable or block variable is destroyed or retained incorrectly (language-dependent). Differs from FUNC-16: that is about how arguments bind; this is about where names exist.",
+      "common_symptoms": [
+        "NameError after a function call",
+        "UnboundLocalError on a global counter",
+        "Counter resets on every call",
+        "Global unchanged after function assigns to same name"
+      ],
+      "incorrect_reasoning_examples": [
+        "'I set result inside the function so I can print result below.'",
+        "'count += 1 in the function updates the count above.'",
+        "'Both functions use x, so they share x.'"
+      ],
+      "correct_reasoning": "Each call creates a fresh local namespace destroyed at return. Assigning a name inside a function creates a local unless declared global/nonlocal; outer data is accessed through arguments and return values.",
+      "common_student_language": [
+        "it says not defined but I defined it",
+        "the variable disappears",
+        "why does it reset every time",
+        "it's the same variable name"
+      ],
+      "prerequisites": ["function call model", "variables and assignment", "namespaces"],
+      "difficulty": 3,
+      "intervention_goal": "Student predicts name visibility and lifetime across calls, and passes data using parameters and return values instead of relying on shared names.",
+      "distinguish_from": ["FUNC-16", "ARR-09", "REC-24"],
+      "error_type": "semantic",
+      "frequency_evidence": "medium",
+      "evidence_basis": "mixed",
+      "evidence_source_ids": ["S4", "S6"],
+      "evidence_notes": "This record represents a name-visibility and lifetime model, distinct from argument binding. It is observable through name errors, unexpected resets, and state predictions.",
+      "diagnostic_signals": ["A local name is referenced after the function returns, or a global is expected to change after local assignment.", "The learner predicts same-named locals in separate calls are one shared variable.", "A stateful result resets because a local is recreated on every call."],
+      "counter_signals": ["The issue is how values bind at a call site, suggesting FUNC-16.", "The unexpected mutation is an array alias/slot error, suggesting ARR-09.", "Separate recursive frames are misunderstood even with correct ordinary scope knowledge, suggesting REC-24."]
+    },
+    {
+      "misconception_id": "FUNC-20",
+      "name": "Incorrect function composition",
+      "category": "FUNCTIONS",
+      "concept": "Nested calls and chaining outputs into inputs",
+      "short_definition": "The student composes functions in the wrong order, passes the function instead of its result, or feeds in a result of the wrong type or discards a result.",
+      "detailed_explanation": "The student fails to treat a call as an expression whose value feeds the next call. Examples: writing f(g(x)) when g(f(x)) was meant, evaluating inner-to-outer order wrongly, calling g(x) as a standalone statement and then f(x) using the old x, passing g instead of g(x), or composing a function that prints into one that needs a number. Distinguishes from FUNC-17: here the failure involves chains of calls and types; from FUNC-18: return exists and is reachable.",
+      "common_symptoms": [
+        "Result of inner call ignored; outer function receives the original value",
+        "TypeError because output type of inner does not match the input type of outer",
+        "Wrong ordering of operations (square then add vs add then square)",
+        "Function object printed instead of a value"
+      ],
+      "incorrect_reasoning_examples": [
+        "'double(x); square(x) first doubles then squares.'",
+        "'square(double) works, I passed the function.'",
+        "'f(g(x)) runs f first because it is written first.'"
+      ],
+      "correct_reasoning": "In f(g(x)), g(x) is evaluated first, and its return value becomes f's argument. Each stage's output type must match the next stage's input type, and a result must be captured (assigned or nested) to be used.",
+      "common_student_language": [
+        "which one runs first",
+        "I called both but nothing changed",
+        "it prints a function object",
+        "do I put the call inside the other call"
+      ],
+      "prerequisites": ["function calls as expressions", "return values", "data types"],
+      "difficulty": 3,
+      "intervention_goal": "Student evaluates nested calls from the inside out, captures intermediate results, and checks type compatibility between stages.",
+      "distinguish_from": ["FUNC-17", "FUNC-18", "FUNC-16"],
+      "error_type": "reasoning",
+      "frequency_evidence": "medium",
+      "evidence_basis": "expert_taxonomy",
+      "evidence_source_ids": ["S4", "S6"],
+      "evidence_notes": "This record remains because chaining returned values calls for inside-out evaluation and type-flow practice, unlike output-versus-return or path-completeness interventions.",
+      "diagnostic_signals": ["A call result is discarded before a later function receives the original value.", "A function object is passed where the result of invoking it is required.", "The learner predicts outer calls run before syntactically nested inner calls."],
+      "counter_signals": ["The inner call prints instead of returning a value, suggesting FUNC-17.", "A needed return is absent on an execution path, suggesting FUNC-18.", "The wrong call arguments were bound to parameters before composition begins, suggesting FUNC-16."]
+    },
+    {
+      "misconception_id": "REC-21",
+      "name": "Missing base case",
+      "category": "RECURSION",
+      "concept": "Termination condition for recursion",
+      "short_definition": "The recursive function has no stopping condition, so it calls itself until the stack overflows.",
+      "detailed_explanation": "The student writes only the recursive step and trusts the recursion to stop when the problem is 'small enough' or when the data runs out. Recognizable by a stack overflow / RecursionError and by a function whose body always reaches the recursive call. Contrast REC-22 (a base case exists but is wrong) and REC-23 (a base case exists but the arguments never reach it).",
+      "common_symptoms": [
+        "RecursionError / StackOverflowError",
+        "Function body has no conditional guarding the recursive call",
+        "Student explains 'it will stop when n gets to the end'",
+        "Function returns nothing meaningful because there is no terminal return"
+      ],
+      "incorrect_reasoning_examples": [
+        "'def fact(n): return n * fact(n-1). It multiplies down to 1 and stops.'",
+        "'The function stops by itself when the list is empty.'",
+        "'Recursion naturally ends like a loop does.'"
+      ],
+      "correct_reasoning": "Every recursive function needs at least one path that returns without a recursive call. Without it, each call makes another call; the language does not stop on its own.",
+      "common_student_language": [
+        "maximum recursion depth exceeded",
+        "it keeps calling itself",
+        "when does it stop",
+        "it should stop at the end"
+      ],
+      "prerequisites": ["function calls", "if statements", "call stack basics"],
+      "difficulty": 2,
+      "intervention_goal": "Student identifies the stopping case before writing the recursive step and checks every path for a non-recursive return.",
+      "distinguish_from": ["REC-22", "REC-23", "LOOP-05"],
+      "error_type": "control_flow",
+      "frequency_evidence": "medium",
+      "evidence_basis": "expert_taxonomy",
+      "evidence_source_ids": ["S4", "S6"],
+      "evidence_notes": "Recursion is included as a core novice topic; this record is diagnostically distinct because no terminating branch exists, which supports a direct base-case construction intervention.",
+      "diagnostic_signals": ["Every reachable path contains a recursive call and no conditional branch returns directly.", "A RecursionError or stack overflow occurs and a structural scan finds no base guard.", "The learner predicts recursion stops automatically when input is small without naming a condition."],
+      "counter_signals": ["A non-recursive branch exists but its condition or value is wrong, suggesting REC-22.", "A correct base case exists but recursive arguments never approach it, suggesting REC-23.", "The nontermination is a loop rather than self-calls, suggesting LOOP-05."]
+    },
+    {
+      "misconception_id": "REC-22",
+      "name": "Incorrect base case",
+      "category": "RECURSION",
+      "concept": "Correct base condition and base value",
+      "short_definition": "A base case exists but its condition or returned value is wrong, causing wrong answers or missed inputs.",
+      "detailed_explanation": "Forms: wrong value (factorial(0) returns 0, making all results 0), too-narrow condition (n == 1 only, so n == 0 recurses to negative infinity), insufficient base cases (Fibonacci with only n == 0 handled, so fib(1) recurses wrongly), or base case that returns the wrong type (None instead of empty list). Differs from REC-21 (none) and REC-23 (base is right but unreachable).",
+      "common_symptoms": [
+        "Answer is wrong by a consistent factor or constant (always 0)",
+        "Works for n >= 2 but fails/hangs on 0 or 1",
+        "Fibonacci-like recursion with one base case",
+        "Return type of base case differs from the recursive case"
+      ],
+      "incorrect_reasoning_examples": [
+        "'if n == 0: return 0' for factorial, 'nothing to multiply.'",
+        "'if n == 1: return 1' only, 'factorial of 0 is not needed.'",
+        "'fib(n) = fib(n-1)+fib(n-2) with if n == 0: return 0 is enough.'"
+      ],
+      "correct_reasoning": "The base value must be the correct answer for the smallest input and must combine properly with the recursive step (identity of the operation). Cover every smallest input that recursion can reach, including those reached via n-2 or empty collections.",
+      "common_student_language": [
+        "it always gives zero",
+        "fails for zero",
+        "do I need two base cases",
+        "what should it return at the end"
+      ],
+      "prerequisites": ["recursive definitions", "identity elements", "mathematical induction intuition"],
+      "difficulty": 3,
+      "intervention_goal": "Student derives the base cases by asking what the answer is for the smallest reachable inputs and checks that the base value fits the combining step.",
+      "distinguish_from": ["REC-21", "REC-23", "REC-25"],
+      "error_type": "boundary",
+      "frequency_evidence": "medium",
+      "evidence_basis": "expert_taxonomy",
+      "evidence_source_ids": ["S4", "S6"],
+      "evidence_notes": "This is retained separately from a missing base case because an existing but incorrect boundary/value calls for derivation from the smallest valid problem, not simply adding a guard.",
+      "diagnostic_signals": ["A base conditional exists but returns an identity or type incompatible with the recursive combine step.", "The function succeeds for ordinary inputs but fails for zero, one, empty, or another smallest reachable input.", "The recursive step reaches values not covered by the present base conditions."],
+      "counter_signals": ["No path returns without a recursive call, suggesting REC-21.", "Base conditions are correct but argument size does not decrease, suggesting REC-23.", "Base and step compute valid values but an intermediate result is discarded, suggesting REC-25."]
+    },
+    {
+      "misconception_id": "REC-23",
+      "name": "Failure to reduce the problem",
+      "category": "RECURSION",
+      "concept": "Progress toward the base case on each recursive call",
+      "short_definition": "The recursive call passes arguments that are not smaller or closer to the base case, so recursion never reaches it.",
+      "detailed_explanation": "A correct base case exists, but the recursive call uses the same or growing argument (f(n) instead of f(n-1)), reduces the wrong parameter, moves in the wrong direction (n+1 with a base of n == 0), or slices a list without shrinking it (lst[0:]). The failing piece is the recursive step's argument. Distinguish from REC-21 (no base case) and LOOP-05 (loop termination reasoning).",
+      "common_symptoms": [
+        "Stack overflow despite a base case",
+        "Same value shown at each call in a trace",
+        "Student reduces a parameter that the base case does not test",
+        "Binary search where the range never narrows (mid not excluded)"
+      ],
+      "incorrect_reasoning_examples": [
+        "'return n + sum_to(n)' as 'it adds the rest.'",
+        "'sum_list(lst[0:])' because 'it passes the list on.'",
+        "'search(arr, lo, mid)' repeating when lo == mid."
+      ],
+      "correct_reasoning": "Each recursive call must work on a strictly smaller instance, measured by a quantity (size, index distance, value) that the base case tests. Show that this quantity decreases on every call and eventually hits the base case.",
+      "common_student_language": [
+        "it has a base case but still crashes",
+        "it keeps getting the same number",
+        "I pass the whole thing again",
+        "how does it get smaller"
+      ],
+      "prerequisites": ["base cases", "list slicing / indexing", "problem decomposition"],
+      "difficulty": 3,
+      "intervention_goal": "Student names the size measure that shrinks per call and shows by trace that it strictly decreases to the base case.",
+      "distinguish_from": ["REC-21", "REC-22", "LOOP-04"],
+      "error_type": "control_flow",
+      "frequency_evidence": "medium",
+      "evidence_basis": "expert_taxonomy",
+      "evidence_source_ids": ["S4", "S6"],
+      "evidence_notes": "A base case alone does not establish termination. This record targets the distinct, observable failure for recursive arguments to shrink toward that base.",
+      "diagnostic_signals": ["A recursive call repeats or enlarges the value tested by the base case.", "A collection slice or search interval retains the same size across calls.", "A trace repeats the same argument tuple before a stack overflow."],
+      "counter_signals": ["No base condition is present, suggesting REC-21.", "The argument decreases but the base condition/value is wrong, suggesting REC-22.", "The progress failure occurs in an iterative update rather than a recursive call, suggesting LOOP-04."]
+    },
+    {
+      "misconception_id": "REC-24",
+      "name": "Misunderstanding recursive call flow",
+      "category": "RECURSION",
+      "concept": "Call stack, separate frames, and winding/unwinding order",
+      "short_definition": "The student has a wrong execution model of recursion: shared variables across calls, parallel calls, or wrong order of work before and after the recursive call.",
+      "detailed_explanation": "The student misjudges what happens during execution. Typical beliefs: all calls share one n, so changing n in the callee changes the caller; the function 'jumps' back to the start like a loop; code after the recursive call runs before it; two recursive calls (fib) run simultaneously. Visible in wrong predicted output order for prints placed before vs after the call. Differs from REC-25, which is specifically about returned values; this is about control flow and state.",
+      "common_symptoms": [
+        "Wrong predicted print order (pre-call vs post-call prints)",
+        "Believes local variables are overwritten by deeper calls",
+        "Cannot trace fib(4) call tree",
+        "Describes recursion as 'the loop in the function'"
+      ],
+      "incorrect_reasoning_examples": [
+        "'print(n) after the recursive call prints 3,2,1 because it goes down.'",
+        "'When fact(2) calls fact(1) the n becomes 1 for everyone.'",
+        "'fib(n-1) and fib(n-2) run at the same time.'"
+      ],
+      "correct_reasoning": "Each call gets its own frame with its own parameters and locals. A caller pauses at the recursive call, deeper calls run to completion, and then the caller resumes after that line, so work after the call executes in reverse order of the calls.",
+      "common_student_language": [
+        "how does it come back",
+        "does n change for the first call",
+        "why is the output backwards",
+        "it's like a loop but inside itself"
+      ],
+      "prerequisites": ["call stack", "local variables", "function return semantics"],
+      "difficulty": 4,
+      "intervention_goal": "Student traces recursive calls with a stack diagram, showing separate frames and the order in which pre- and post-call statements execute.",
+      "distinguish_from": ["REC-25", "FUNC-19", "LOOP-05"],
+      "error_type": "reasoning",
+      "frequency_evidence": "medium",
+      "evidence_basis": "expert_taxonomy",
+      "evidence_source_ids": ["S6"],
+      "evidence_notes": "Misconceptions about program behavior motivate explicit execution-model diagnosis. This record focuses on call-frame and unwinding predictions rather than the arithmetic combination of returns.",
+      "diagnostic_signals": ["Predicted output order for statements before and after a recursive call is reversed.", "The learner claims deeper calls overwrite a caller's local parameter.", "The learner describes sibling recursive calls as simultaneous despite a sequential execution model."],
+      "counter_signals": ["The learner traces call order correctly but drops the returned sub-result, suggesting REC-25.", "The scope error occurs in ordinary non-recursive function calls, suggesting FUNC-19.", "The issue is a loop condition timing belief rather than self-call frames, suggesting LOOP-05."]
+    },
+    {
+      "misconception_id": "REC-25",
+      "name": "Incorrect return propagation",
+      "category": "RECURSION",
+      "concept": "Passing and combining returned values up the call chain",
+      "short_definition": "Results from recursive calls are dropped, not returned, or not combined, so the final answer is lost or wrong.",
+      "detailed_explanation": "The base case returns correctly but the value does not reach the top. Forms: calling f(n-1) without return (top-level call returns None), computing the sub-result but discarding it, returning the base value directly instead of combining (return 1 instead of n * f(n-1)), or returning the wrong piece (e.g. in list recursion returning only the tail's result). The student believes the base case's return value jumps straight back to the original caller. Differs from REC-24 (flow/state) and FUNC-18 (non-recursive return paths).",
+      "common_symptoms": [
+        "Top-level call returns None while base case is reached (verified by print)",
+        "Answer equals the base value regardless of input",
+        "Result of recursive call is not used in the return expression",
+        "Student says the value 'gets passed back automatically'"
+      ],
+      "incorrect_reasoning_examples": [
+        "'fact(n-1) on its own line; the answer will come back at the end.'",
+        "'When n == 0 returns 1, that is what the original call returns.'",
+        "'total = sum_list(rest)' then returns lst[0] only."
+      ],
+      "correct_reasoning": "Each call returns only to its immediate caller, which must use or return that value. The final answer is built by combining sub-results at each level on the way back up, so every recursive call's result must be returned or combined in a return expression.",
+      "common_student_language": [
+        "it gets to the base case but returns None",
+        "where does the answer go",
+        "I don't return the recursive call",
+        "it always gives 1"
+      ],
+      "prerequisites": ["return values", "recursive call flow", "expression evaluation"],
+      "difficulty": 4,
+      "intervention_goal": "Student traces returned values frame by frame, showing how each caller consumes its callee's result to build the final answer.",
+      "distinguish_from": ["REC-24", "FUNC-17", "FUNC-18"],
+      "error_type": "semantic",
+      "frequency_evidence": "medium",
+      "evidence_basis": "expert_taxonomy",
+      "evidence_source_ids": ["S4", "S6"],
+      "evidence_notes": "This is distinct from recursive call-flow understanding: the learner may know calls unwind but still omit, discard, or fail to combine each returned sub-result.",
+      "diagnostic_signals": ["A recursive call appears as a statement with no return or combination expression.", "The base case is reached but the top-level result is None or equals only the base value.", "A trace shows a valid sub-result being computed then ignored by its caller."],
+      "counter_signals": ["The learner predicts pre/post-call execution order incorrectly, suggesting REC-24.", "The non-recursive function prints instead of returning, suggesting FUNC-17.", "A non-recursive return is absent on one path or placed too early, suggesting FUNC-18."]
+    }
+  ]
+}

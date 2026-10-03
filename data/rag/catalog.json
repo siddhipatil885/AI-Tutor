@@ -1,0 +1,31 @@
+{
+  "version": "0.1.0",
+  "purpose": "Controlled misconception taxonomy for RAG metadata; not a diagnosis classifier.",
+  "misconceptions": [
+    {"id":"M001","topic":"loops","name":"Off-by-one loop boundary"},
+    {"id":"M002","topic":"loops","name":"Incorrect loop initialization"},
+    {"id":"M003","topic":"loops","name":"Incorrect loop termination condition"},
+    {"id":"M004","topic":"loops","name":"Incorrect loop update"},
+    {"id":"M005","topic":"loops","name":"Loop body and control-flow confusion"},
+    {"id":"M006","topic":"arrays","name":"Index versus value confusion"},
+    {"id":"M007","topic":"arrays","name":"Zero-based indexing misconception"},
+    {"id":"M008","topic":"arrays","name":"Array length and valid-index confusion"},
+    {"id":"M009","topic":"arrays","name":"Array traversal boundary error"},
+    {"id":"M010","topic":"arrays","name":"Mutation versus copy misunderstanding"},
+    {"id":"M011","topic":"conditionals","name":"Assignment versus comparison confusion"},
+    {"id":"M012","topic":"conditionals","name":"Boolean operator misconception"},
+    {"id":"M013","topic":"conditionals","name":"If-else branch order confusion"},
+    {"id":"M014","topic":"conditionals","name":"Boundary comparison misconception"},
+    {"id":"M015","topic":"conditionals","name":"Truthiness misunderstanding"},
+    {"id":"M016","topic":"functions","name":"Parameter versus argument confusion"},
+    {"id":"M017","topic":"functions","name":"Return versus print confusion"},
+    {"id":"M018","topic":"functions","name":"Variable scope misconception"},
+    {"id":"M019","topic":"functions","name":"Function definition versus invocation confusion"},
+    {"id":"M020","topic":"functions","name":"Function side-effect misunderstanding"},
+    {"id":"M021","topic":"recursion","name":"Missing or incorrect base case"},
+    {"id":"M022","topic":"recursion","name":"Recursive progress misconception"},
+    {"id":"M023","topic":"recursion","name":"Call-stack execution misunderstanding"},
+    {"id":"M024","topic":"recursion","name":"Recursive return propagation confusion"},
+    {"id":"M025","topic":"recursion","name":"Recursive subproblem decomposition misconception"}
+  ]
+}
