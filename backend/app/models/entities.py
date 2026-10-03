@@ -1,10 +1,16 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
+from pgvector.sqlalchemy import Vector
 
 from app.db.session import Base
+from app.rag.config import EMBEDDING_DIMENSIONS, get_rag_settings
+
+
+# Fail fast if a future configuration change diverges from this schema.
+assert get_rag_settings().embedding_dimensions == EMBEDDING_DIMENSIONS
 
 
 class Timestamped:
@@ -61,6 +67,8 @@ class Diagnosis(Base, Timestamped):
     misconception_id: Mapped[Optional[str]] = mapped_column(ForeignKey("misconceptions.id"), nullable=True)
     confidence: Mapped[float] = mapped_column(Float)
     evidence: Mapped[list] = mapped_column(JSON)
+    reasoning: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    alternative_misconceptions: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
     error_type: Mapped[str] = mapped_column(String(50))
     needs_intervention: Mapped[bool] = mapped_column(Boolean)
 
@@ -71,10 +79,24 @@ class KnowledgeDocument(Base, Timestamped):
     misconception_id: Mapped[Optional[str]] = mapped_column(ForeignKey("misconceptions.id"), nullable=True)
     concept_id: Mapped[str] = mapped_column(ForeignKey("concepts.id"))
     content: Mapped[str] = mapped_column(Text)
+    # concept_id retains the project's established concept relationship.
+    category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     content_type: Mapped[str] = mapped_column(String(50))
     difficulty: Mapped[str] = mapped_column(String(30))
+    stage: Mapped[str] = mapped_column(String(30), default="intervention", server_default="intervention")
     source: Mapped[str] = mapped_column(String(180))
     educational_purpose: Mapped[str] = mapped_column(String(180))
+    # ``metadata`` is reserved by SQLAlchemy's declarative API, hence the
+    # Python attribute is named rag_metadata while the persisted column is
+    # precisely named metadata.
+    rag_metadata: Mapped[dict] = mapped_column("metadata", JSON, default=dict, server_default="{}")
+    embedding: Mapped[Optional[list[float]]] = mapped_column(Vector(EMBEDDING_DIMENSIONS), nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    __table_args__ = (
+        Index("ix_knowledge_documents_misconception_stage_type_difficulty", "misconception_id", "stage", "content_type", "difficulty"),
+        Index("ix_knowledge_documents_category_concept", "category", "concept_id"),
+    )
 
 
 class Intervention(Base, Timestamped):
