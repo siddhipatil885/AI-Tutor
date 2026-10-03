@@ -63,6 +63,7 @@ class EmbeddingRequest(BaseModel):
     @field_validator("texts")
     @classmethod
     def no_blank_text(cls, values: list[str]) -> list[str]:
+        """Return texts unchanged, raising ValueError for blank entries."""
         if any(not value.strip() for value in values):
             raise ValueError("Embedding text cannot be blank.")
         return values

@@ -29,10 +29,12 @@ VALID_EVIDENCE_BASES = {"literature", "observed_student_data", "expert_taxonomy"
 
 
 def load_taxonomy() -> dict:
+    """Read and parse the repository's canonical misconception taxonomy."""
     return json.loads(TAXONOMY_PATH.read_text())
 
 
 def test_taxonomy_has_exactly_the_25_canonical_ids():
+    """Verify that all 25 canonical IDs occur exactly once."""
     records = load_taxonomy()["misconceptions"]
     assert len(records) == 25
     assert {record["misconception_id"] for record in records} == CANONICAL_IDS
@@ -40,6 +42,7 @@ def test_taxonomy_has_exactly_the_25_canonical_ids():
 
 
 def test_every_canonical_record_has_evidence_and_diagnostic_contract():
+    """Check required fields, evidence references, and diagnostic signals."""
     taxonomy = load_taxonomy()
     source_ids = set(taxonomy["evidence_sources"])
     for record in taxonomy["misconceptions"]:
@@ -55,6 +58,7 @@ def test_every_canonical_record_has_evidence_and_diagnostic_contract():
 
 
 def test_distinguishing_ids_are_canonical_and_not_self_references():
+    """Ensure distinguishing references identify other canonical records."""
     for record in load_taxonomy()["misconceptions"]:
         related = set(record["distinguish_from"])
         assert related <= CANONICAL_IDS
@@ -62,6 +66,7 @@ def test_distinguishing_ids_are_canonical_and_not_self_references():
 
 
 def test_legacy_m_ids_map_one_to_one_to_all_canonical_ids():
+    """Verify a one-to-one mapping from legacy IDs to all canonical IDs."""
     mapping = json.loads(LEGACY_MAP_PATH.read_text())["legacy_to_canonical"]
     expected_legacy_ids = {f"M{number:03d}" for number in range(1, 26)}
     assert set(mapping) == expected_legacy_ids
@@ -70,5 +75,6 @@ def test_legacy_m_ids_map_one_to_one_to_all_canonical_ids():
 
 
 def test_taxonomy_does_not_claim_a_global_frequency_ranking():
+    """Check that the selection statement disclaims a global top-25 ranking."""
     statement = load_taxonomy()["taxonomy"]["selection_statement"].lower()
     assert "not a statistically ranked global top-25 list" in statement

@@ -21,4 +21,5 @@ class RagSettings(BaseSettings):
 
 @lru_cache
 def get_rag_settings() -> RagSettings:
+    """Return cached RAG settings loaded from the environment and .env file."""
     return RagSettings()
