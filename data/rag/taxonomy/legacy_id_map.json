@@ -1,0 +1,31 @@
+{
+  "purpose": "Temporary compatibility map during canonical taxonomy migration. New code must emit and persist canonical IDs only. Existing M00x demo/seed records may resolve through this map until their dependent schema, APIs, tests, and frontend consumers are migrated and verified.",
+  "canonical_id_format": "<DOMAIN>-<NUMBER>",
+  "legacy_to_canonical": {
+    "M001": "LOOP-01",
+    "M002": "LOOP-02",
+    "M003": "LOOP-03",
+    "M004": "LOOP-04",
+    "M005": "LOOP-05",
+    "M006": "ARR-06",
+    "M007": "ARR-07",
+    "M008": "ARR-08",
+    "M009": "ARR-09",
+    "M010": "ARR-10",
+    "M011": "COND-11",
+    "M012": "COND-12",
+    "M013": "COND-13",
+    "M014": "COND-14",
+    "M015": "COND-15",
+    "M016": "FUNC-16",
+    "M017": "FUNC-17",
+    "M018": "FUNC-18",
+    "M019": "FUNC-19",
+    "M020": "FUNC-20",
+    "M021": "REC-21",
+    "M022": "REC-22",
+    "M023": "REC-23",
+    "M024": "REC-24",
+    "M025": "REC-25"
+  }
+}
