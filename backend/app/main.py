@@ -1,28 +1,29 @@
-from contextlib import asynccontextmanager
+from sqlalchemy import text
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.config import get_settings
-from app.db.session import Base, SessionLocal, engine
-from app import models  # register all mapped models
-from app.seed import seed
+from app.db.session import engine
 
 
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try: seed(db)
-    finally: db.close()
-    yield
-
-
-app = FastAPI(title="Re:Learn API", version="0.1.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=[get_settings().frontend_origin], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app = FastAPI(title="Re:Learn API", version="0.1.0")
+settings = get_settings()
+app.add_middleware(CORSMiddleware, allow_origins=[settings.frontend_origin, "http://127.0.0.1:5173"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 app.include_router(router)
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "relearn"}
+    return {"status": "ok"}
+
+
+@app.get("/api/health/db")
+def database_health():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except Exception as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Database connection failed") from exc
+    return {"status": "ok"}

@@ -3,9 +3,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    database_url: str = "sqlite:///./relearn.db"
+    database_url: str
     frontend_origin: str = "http://localhost:5173"
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", ".env.local", "../.env.local"), extra="ignore")
 
 
 @lru_cache

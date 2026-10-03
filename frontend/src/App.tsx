@@ -1,41 +1,132 @@
-import { useEffect, useState } from 'react'
-import { answerReassessment, getLearner, getQuestion, makeIntervention, startReassessment, submitAnswer } from './services/api'
-import type { Assessment, Diagnosis, Intervention, Learner, Question } from './types'
+import { FormEvent, useEffect, useState } from 'react'
+import { getBackendHealth, getDatabaseHealth } from './services/api'
+import { getCurrentUser, signIn, signOut, signUp } from './services/auth'
 
-type Step = 'dashboard' | 'learn' | 'intervention' | 'reassess' | 'progress'
-const steps: {id: Step; label: string; icon: string}[] = [
-  {id:'dashboard', label:'Today', icon:'grid-1x2'}, {id:'learn', label:'Practice', icon:'pencil-square'}, {id:'progress', label:'Progress', icon:'graph-up-arrow'}
-]
+type View = 'home' | 'signin' | 'signup' | 'dashboard'
+type User = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>
+type Status = 'checking' | 'connected' | 'unavailable'
+
+const Logo = () => <div className="logo"><b>R</b><span>Re<span>:</span>Learn</span></div>
+const routeFor = (view: View) => view === 'dashboard' ? '/dashboard' : view === 'home' ? '/' : `/${view}`
+const viewForPath = (path: string): View => path === '/dashboard' ? 'dashboard' : path === '/signup' ? 'signup' : path === '/signin' ? 'signin' : 'home'
 
 export default function App() {
-  const [step, setStep] = useState<Step>('dashboard')
-  const [question, setQuestion] = useState<Question | null>(null)
-  const [learner, setLearner] = useState<Learner | null>(null)
-  const [answer, setAnswer] = useState('')
-  const [reasoning, setReasoning] = useState('')
-  const [submissionId, setSubmissionId] = useState<number | null>(null)
-  const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null)
-  const [intervention, setIntervention] = useState<Intervention | null>(null)
-  const [assessment, setAssessment] = useState<Assessment | null>(null)
-  const [followupAnswer, setFollowupAnswer] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const refresh = async () => { const [q, p] = await Promise.all([getQuestion(), getLearner()]); setQuestion(q); setLearner(p) }
-  useEffect(() => { refresh().catch(e => setError(e.message)) }, [])
-  const run = async (work: () => Promise<void>) => { setBusy(true); setError(''); try { await work() } catch (e) { setError(e instanceof Error ? e.message : 'Please try again.') } finally { setBusy(false) } }
-  const submit = () => run(async () => { if (!question || !answer.trim()) return; const result = await submitAnswer(question.id, answer, reasoning); setSubmissionId(result.id); setDiagnosis(result.diagnosis); if (result.diagnosis.needs_intervention) setStep('intervention'); else { await refresh() } })
-  const openIntervention = () => run(async () => { if (!submissionId) return; setIntervention(await makeIntervention(submissionId)) })
-  const beginAssessment = () => run(async () => { if (!intervention) return; setAssessment(await startReassessment(intervention.id)); setStep('reassess') })
-  const submitFollowUp = () => run(async () => { if (!intervention || !assessment || !followupAnswer.trim()) return; const r = await answerReassessment(intervention.id, assessment.assessment_id, followupAnswer); setAssessment(r); await refresh() })
-  const nav = (target: Step) => { setStep(target); if (target === 'learn') { setAnswer(''); setReasoning(''); setDiagnosis(null) } }
-  if (error) return <main className="error-shell"><h1>Re:Learn</h1><p>{error}</p><button className="btn btn-primary" onClick={() => refresh().catch(e => setError(e.message))}>Try again</button></main>
-  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span className="brand-mark">R</span><span>Re:Learn</span></div><p className="eyebrow">YOUR LEARNING SPACE</p>{steps.map(item => <button key={item.id} className={`nav-link ${step === item.id ? 'active' : ''}`} onClick={() => nav(item.id)}><i className={`bi bi-${item.icon}`}/>{item.label}</button>)}<div className="sidebar-foot"><div className="avatar">AL</div><div><strong>Alex Learner</strong><small>Python foundations</small></div></div></aside><main className="content"><header><div><p className="eyebrow">ADAPTIVE PRACTICE</p><h1>{step === 'dashboard' ? 'Good afternoon, Alex.' : step === 'learn' ? 'Let’s think it through.' : step === 'intervention' ? 'A focused reset.' : step === 'reassess' ? 'Try it in a new setting.' : 'Your learning story.'}</h1></div><span className="streak"><i className="bi bi-lightning-charge-fill"/> 3 day streak</span></header>
-  {step === 'dashboard' && <Dashboard learner={learner} onPractice={() => nav('learn')} />}
-  {step === 'learn' && question && <section className="practice-card"><div className="card-top"><span className="pill">Python · Beginner</span><span>01 / 01</span></div><p className="prompt-label">YOUR QUESTION</p><pre className="question-code">{question.prompt}</pre><label>Your answer</label><textarea value={answer} onChange={e => setAnswer(e.target.value)} placeholder="For example: 1 2 3 4" rows={2}/><details><summary>Add your reasoning (optional)</summary><textarea value={reasoning} onChange={e => setReasoning(e.target.value)} placeholder="What made you choose that answer?" rows={2}/></details>{diagnosis && !diagnosis.needs_intervention && <div className={`feedback ${diagnosis.is_correct ? 'success' : 'neutral'}`}><i className={`bi bi-${diagnosis.is_correct ? 'check-circle-fill' : 'info-circle-fill'}`}/><div><strong>{diagnosis.is_correct ? 'Exactly right.' : 'Let’s pause before labeling this.'}</strong><p>{diagnosis.evidence[0]}</p></div></div>}<button disabled={busy || !answer.trim()} className="btn btn-dark submit" onClick={submit}>{busy ? 'Checking…' : 'Check my thinking'} <i className="bi bi-arrow-right"/></button></section>}
-  {step === 'intervention' && diagnosis && <section className="intervention"><div className="diagnosis-banner"><div className="round-icon"><i className="bi bi-compass"/></div><div><span className="pill coral">Pattern noticed</span><h2>You may be counting the stop value, too.</h2><p>{diagnosis.evidence[0]}</p></div></div>{!intervention ? <button className="btn btn-dark submit" disabled={busy} onClick={openIntervention}>Show me a focused explanation <i className="bi bi-arrow-right"/></button> : <><div className="lesson-grid"><article><p className="eyebrow">WHY THIS HAPPENS</p><h3>{intervention.title}</h3><p>{intervention.explanation}</p></article><article className="example"><p className="eyebrow">TRACE IT</p><p>{intervention.worked_example}</p></article></div><div className="hint"><i className="bi bi-lightbulb-fill"/><div><strong>Try this first</strong><p>{intervention.guided_hint}</p></div></div><button className="btn btn-dark submit" disabled={busy} onClick={beginAssessment}>I’m ready for a new example <i className="bi bi-arrow-right"/></button></>}</section>}
-  {step === 'reassess' && assessment && <section className="practice-card reassess"><span className="pill mint">Same idea, different example</span><p className="prompt-label">FOLLOW-UP QUESTION</p><pre className="question-code">{assessment.question.prompt}</pre><label>Your answer</label><textarea value={followupAnswer} disabled={assessment.status !== 'pending'} onChange={e => setFollowupAnswer(e.target.value)} placeholder="Write the output values" rows={2}/>{assessment.status !== 'pending' && <div className={`feedback ${assessment.status === 'resolved' ? 'success' : 'neutral'}`}><i className={`bi bi-${assessment.status === 'resolved' ? 'check-circle-fill' : 'arrow-repeat'}`}/><div><strong>{assessment.status === 'resolved' ? 'You carried the idea into a new problem.' : 'This pattern may need one more pass.'}</strong><p>{assessment.evidence[0]}</p></div></div>}{assessment.status === 'pending' ? <button disabled={busy || !followupAnswer.trim()} className="btn btn-dark submit" onClick={submitFollowUp}>{busy ? 'Checking…' : 'Check this answer'} <i className="bi bi-arrow-right"/></button> : <button className="btn btn-outline-dark submit" onClick={() => nav('progress')}>See my progress</button>}</section>}
-  {step === 'progress' && <Progress learner={learner} onPractice={() => nav('learn')} />}</main></div>
+  const [view, setView] = useState<View>(() => viewForPath(window.location.pathname))
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const navigate = (next: View) => { window.history.pushState({}, '', routeFor(next)); setView(next) }
+
+  useEffect(() => {
+    getCurrentUser().then(setUser).catch(() => setUser(null)).finally(() => setLoading(false))
+  }, [])
+  useEffect(() => {
+    const onPopState = () => setView(viewForPath(window.location.pathname))
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+  useEffect(() => {
+    if (!loading && view === 'dashboard' && !user) navigate('signin')
+  }, [loading, user, view])
+
+  if (loading) return <div className="auth-loading">Checking your session…</div>
+  if (view === 'dashboard' && !user) return <div className="auth-loading">Redirecting to sign in…</div>
+  if (view === 'home') return <Landing nav={navigate} />
+  if (view === 'signin' || view === 'signup') return <Auth mode={view} nav={navigate} onAuthenticated={async () => { setUser(await getCurrentUser()); navigate('dashboard') }} />
+  if (!user) return <div className="auth-loading">Redirecting to sign in…</div>
+  return <Dashboard user={user} onLogout={async () => { await signOut(); setUser(null); navigate('signin') }} />
 }
 
-function Dashboard({learner, onPractice}: {learner: Learner | null; onPractice: () => void}) { const mastery = Math.round((learner?.mastery.C001 ?? .35) * 100); return <><section className="hero"><div><span className="pill mint">ONE FOCUSED PRACTICE</span><h2>Build confidence with<br/>loop boundaries.</h2><p>Small practice, clear feedback, and a check that the idea really sticks.</p><button className="btn btn-dark" onClick={onPractice}>Start practice <i className="bi bi-arrow-right"/></button></div><div className="hero-orbit"><div className="orbit-core">{mastery}<small>%</small><span>confidence</span></div><i className="bi bi-braces-asterisk"/></div></section><section className="stat-row"><div><small>CURRENT CONCEPT</small><strong>Python loops</strong><span>{mastery}% confidence</span></div><div><small>ACTIVE FOCUS</small><strong>{learner?.active_misconceptions.length ? 'Loop boundaries' : 'Ready for practice'}</strong><span>One idea at a time</span></div><div><small>RECENT WINS</small><strong>{learner?.resolved_misconceptions.length || 0} resolved</strong><span>Understanding that transfers</span></div></section><section className="activity"><div><h3>Your path today</h3><span className="muted">A complete learning loop</span></div><div className="path"><span className="path-done"><i className="bi bi-1-circle-fill"/> Notice</span><i className="bi bi-arrow-right"/><span><i className="bi bi-2-circle"/> Practice</span><i className="bi bi-arrow-right"/><span><i className="bi bi-3-circle"/> Check again</span></div></section></> }
-function Progress({learner, onPractice}: {learner: Learner | null; onPractice: () => void}) { const mastery = Math.round((learner?.mastery.C001 ?? .35) * 100); return <section className="progress-page"><div className="progress-card"><p className="eyebrow">PYTHON LOOP BOUNDARIES</p><h2>{mastery}% confidence</h2><div className="progress"><div className="progress-bar" style={{width:`${mastery}%`}}/></div><p>You’re building understanding through explanation and transfer, not just answer streaks.</p></div><div className="history"><h3>Recent learning activity</h3>{learner?.trajectory.length ? learner.trajectory.slice().reverse().map((x,i) => <div className="history-row" key={i}><span className={x.status === 'resolved' ? 'dot good' : 'dot'}/><div><strong>{x.status === 'resolved' ? 'Boundary understanding generalized' : 'Boundary pattern identified'}</strong><p>{x.evidence[0]}</p></div></div>) : <p className="muted">Start a practice to create your learning record.</p>}</div><button className="btn btn-dark" onClick={onPractice}>Practice again <i className="bi bi-arrow-right"/></button></section> }
+function Landing({ nav }: { nav: (view: View) => void }) {
+  return <div className="marketing"><nav><Logo/><div><a href="#loop">How it works</a><button className="plain" onClick={() => nav('signin')}>Sign in</button><button className="primary mini" onClick={() => nav('signup')}>Get started <i className="bi bi-arrow-up-right" /></button></div></nav><main className="hero"><section><span className="tag"><i className="bi bi-stars" /> ADAPTIVE LEARNING, MADE PERSONAL</span><h1>Understand the <em>why</em><br />behind every answer.</h1><p>Re:Learn is ready for its secure application foundation.</p><button className="primary" onClick={() => nav('signup')}>Start learning free <i className="bi bi-arrow-right" /></button></section></main></div>
+}
+
+function Auth({ mode, nav, onAuthenticated }: { mode: 'signin' | 'signup'; nav: (view: View) => void; onAuthenticated: () => Promise<void> }) {
+  const signup = mode === 'signup'
+  const [show, setShow] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setError('')
+    const values = new FormData(event.currentTarget)
+    try {
+      const email = String(values.get('email') || ''), password = String(values.get('password') || '')
+      if (signup) await signUp(email, password, String(values.get('name') || 'Learner'))
+      else await signIn(email, password)
+      await onAuthenticated()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Authentication failed.')
+    } finally { setBusy(false) }
+  }
+  return <div className="auth"><aside><Logo/><div className="auth-copy"><span className="tag"><i className="bi bi-stars" /> YOUR LEARNING, UNLOCKED</span><h1>Build on a<br />secure <em>foundation.</em></h1><p>Sign in to connect your React application to its FastAPI and Neon services.</p></div></aside><main><button className="back" onClick={() => nav('home')}><i className="bi bi-arrow-left" /> Back to home</button><section className="auth-form"><small>{signup ? 'CREATE YOUR ACCOUNT' : 'WELCOME BACK'}</small><h2>{signup ? 'Start with your account.' : 'Pick up where you left off.'}</h2><p>{signup ? 'Create a secure Neon Auth account.' : 'Sign in to continue to your dashboard.'}</p>{error && <div className="error">{error}</div>}<form onSubmit={submit}>{signup && <label>Full name<input name="name" required placeholder="Alex Learner" autoComplete="name" /></label>}<label>Email address<input name="email" required type="email" placeholder="you@example.com" autoComplete="email" /></label><label>Password<span className="password"><input name="password" required type={show ? 'text' : 'password'} minLength={8} placeholder="At least 8 characters" autoComplete={signup ? 'new-password' : 'current-password'} /><button type="button" onClick={() => setShow(!show)}><i className={`bi bi-eye${show ? '-slash' : ''}`} /></button></span></label><button disabled={busy} className="primary wide">{busy ? 'Authenticating…' : signup ? 'Create free account' : 'Sign in'} <i className="bi bi-arrow-right" /></button></form><p className="switch">{signup ? 'Already have an account?' : 'New to Re:Learn?'} <button onClick={() => nav(signup ? 'signin' : 'signup')}>{signup ? 'Sign in' : 'Create an account'}</button></p></section></main></div>
+}
+
+function Dashboard({ user, onLogout }: { user: User; onLogout: () => Promise<void> }) {
+  const [backend, setBackend] = useState<Status>('checking')
+  const [database, setDatabase] = useState<Status>('checking')
+  useEffect(() => {
+    getBackendHealth().then(result => setBackend(result.status === 'ok' ? 'connected' : 'unavailable')).catch(() => setBackend('unavailable'))
+    getDatabaseHealth().then(result => setDatabase(result.status === 'ok' ? 'connected' : 'unavailable')).catch(() => setDatabase('unavailable'))
+  }, [])
+  const label = (status: Status) => status === 'checking' ? 'Checking…' : status === 'connected' ? 'Connected' : 'Unavailable'
+  const firstName = (user.name || 'Learner').split(' ')[0]
+  return <div className="app">
+    <aside className="sidebar dashboard-sidebar">
+      <Logo />
+      <small>LEARNING SPACE</small>
+      <button className="selected"><i className="bi bi-grid-1x2-fill" />Overview</button>
+      <button><i className="bi bi-journal-code" />Practice</button>
+      <button><i className="bi bi-bar-chart-line" />Progress</button>
+      <button><i className="bi bi-bookmark" />Bookmarks</button>
+      <div className="sidebar-divider" />
+      <small>YOUR PLAN</small>
+      <button><i className="bi bi-calendar3" />Daily planner</button>
+      <button><i className="bi bi-bullseye" />Goals</button>
+      <div className="profile">
+        <b>{(user.name || user.email || 'U').slice(0, 2).toUpperCase()}</b>
+        <span><strong>{user.name || 'Learner'}</strong><small>{user.email}</small></span>
+        <button onClick={onLogout} aria-label="Log out"><i className="bi bi-box-arrow-right" /></button>
+      </div>
+    </aside>
+    <main className="workspace dashboard-workspace">
+      <header className="dashboard-header">
+        <div><small>MONDAY, OCTOBER 6, 2025</small><h1>Long day, {firstName}?</h1><p>Let’s make a little progress today.</p></div>
+        <div className="header-actions"><span className="streak"><i className="bi bi-fire" /> 4 day streak</span><button className="icon-button" aria-label="Notifications"><i className="bi bi-bell" /></button></div>
+      </header>
+      <div className="dashboard-grid">
+        <section className="dashboard-main">
+          <div className="plan-card">
+            <div><small>TODAY'S PLAN</small><h2>Build your foundations</h2><p>Keep your momentum going with these focused sessions.</p></div>
+            <div className="plan-progress"><strong>2 <span>/ 4</span></strong><small>completed</small><div><i style={{ width: '50%' }} /></div></div>
+          </div>
+          <div className="section-heading"><div><small>YOUR PROGRESS</small><h2>A little better every day.</h2></div><button className="text-button">View details <i className="bi bi-arrow-up-right" /></button></div>
+          <div className="stats-grid">
+            <div className="stat-card"><span className="stat-icon blue"><i className="bi bi-clock" /></span><small>LEARNING TIME</small><strong>3h 42m</strong><em><i className="bi bi-arrow-up" /> 18% this week</em></div>
+            <div className="stat-card"><span className="stat-icon purple"><i className="bi bi-check2-circle" /></span><small>QUESTIONS SOLVED</small><strong>128</strong><em><i className="bi bi-arrow-up" /> 24 this week</em></div>
+            <div className="stat-card"><span className="stat-icon orange"><i className="bi bi-lightning-charge" /></span><small>ACCURACY</small><strong>78%</strong><em><i className="bi bi-arrow-up" /> 6% this week</em></div>
+          </div>
+          <div className="chart-card"><div className="card-heading"><div><small>ACTIVITY</small><h3>Your learning rhythm</h3></div><span>Last 7 days <i className="bi bi-chevron-down" /></span></div><div className="activity-chart"><div className="chart-y"><span>60m</span><span>40m</span><span>20m</span><span>0m</span></div><div className="chart-bars">{[35, 58, 43, 78, 52, 88, 66].map((height, index) => <div className="bar-column" key={index}><div className="bar" style={{ height: `${height}%` }} /><small>{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</small></div>)}</div></div></div>
+          <div className="section-heading topics-heading"><div><small>KEEP EXPLORING</small><h2>Popular topics</h2></div><button className="text-button">See all <i className="bi bi-arrow-right" /></button></div>
+          <div className="topic-grid"><Topic icon="code-slash" title="Data Structures" meta="12 lessons" color="blue" /><Topic icon="braces" title="Algorithms" meta="8 lessons" color="purple" /><Topic icon="database" title="SQL Fundamentals" meta="10 lessons" color="orange" /></div>
+        </section>
+        <aside className="dashboard-rail">
+          <div className="welcome-card"><span className="welcome-spark"><i className="bi bi-stars" /></span><small>YOUR NEXT STEP</small><h2>Understand the why, not just the how.</h2><p>Start a guided session to strengthen the concepts you’re working on.</p><button className="primary wide">Start a session <i className="bi bi-arrow-right" /></button></div>
+          <div className="question-card"><div className="card-heading"><div><small>PROBLEM OF THE DAY</small><h3>Can you solve this?</h3></div><i className="bi bi-three-dots" /></div><span className="difficulty">MEDIUM</span><p>What is the time complexity of searching in a balanced binary search tree?</p><button className="outline-button">Try it now <i className="bi bi-arrow-up-right" /></button></div>
+          <div className="planner-card"><div className="card-heading"><div><small>DAILY PLANNER</small><h3>Today's focus</h3></div><button className="icon-button"><i className="bi bi-plus-lg" /></button></div><PlannerItem title="Review arrays & strings" time="25 min" done /><PlannerItem title="Practice binary trees" time="30 min" /><PlannerItem title="Reflect on today's learning" time="10 min" /></div>
+          <div className="system-status"><span><i className="bi bi-circle-fill" /> Services</span><small>API {label(backend)} · DB {label(database)}</small></div>
+        </aside>
+      </div>
+    </main>
+  </div>
+}
+
+function Topic({ icon, title, meta, color }: { icon: string; title: string; meta: string; color: string }) {
+  return <button className="topic-card"><span className={`topic-icon ${color}`}><i className={`bi ${icon}`} /></span><span><strong>{title}</strong><small>{meta}</small></span><i className="bi bi-arrow-up-right topic-arrow" /></button>
+}
+
+function PlannerItem({ title, time, done = false }: { title: string; time: string; done?: boolean }) {
+  return <div className={`planner-item ${done ? 'done' : ''}`}><span className="planner-check"><i className="bi bi-check" /></span><span><strong>{title}</strong><small>{time}</small></span></div>
+}
+
+function Connection({ name, status }: { name: string; status: string }) {
+  return <div className="connection-row"><span><i className={`bi bi-${status === 'Connected' ? 'check-circle-fill' : status === 'Checking…' ? 'arrow-repeat' : 'exclamation-circle-fill'}`} /> {name}</span><strong>{status}</strong></div>
+}
