@@ -19,7 +19,14 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Re:Learn API", version="0.1.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=[get_settings().frontend_origin], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+settings = get_settings()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.frontend_origin_list or ["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(router)
 
 

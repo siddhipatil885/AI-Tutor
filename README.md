@@ -37,6 +37,10 @@ npm run dev
 
 Open the Vite URL (usually `http://localhost:5173`). The API endpoint is configured by `VITE_API_URL`, defaulting to `http://localhost:8000/api`.
 
+## Authentication integration
+
+Authentication is not implemented in this workspace yet. When connecting the login provider, import `announceAuthState` from `frontend/src/services/auth.ts` and call `announceAuthState({ userId: user.id })` after login or session restoration. Call `announceAuthState(null)` on logout. The onboarding tour opens once for each signed-in user; no credentials or provider-specific secrets are handled by Re:Learn's UI.
+
 ## API flow
 
 1. `POST /api/questions` creates or returns a question.

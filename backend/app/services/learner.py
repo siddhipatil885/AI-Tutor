@@ -12,6 +12,20 @@ def profile_for(db: Session, user_id: int) -> LearnerProfile:
     return profile
 
 
+def record_concept_success(db: Session, profile: LearnerProfile, concept_id: str, evidence: list[str]) -> None:
+    mastery = dict(profile.mastery or {})
+    trajectory = list(profile.trajectory or [])
+    already_recorded = any(
+        item.get("status") == "demonstrated" and item.get("misconception_id") == concept_id
+        for item in trajectory
+    )
+    if not already_recorded:
+        mastery[concept_id] = min(1.0, round(mastery.get(concept_id, 0.35) + 0.15, 2))
+        trajectory.append({"status": "demonstrated", "misconception_id": concept_id, "evidence": evidence})
+        profile.mastery, profile.trajectory = mastery, trajectory[-10:]
+        db.commit()
+
+
 def apply_assessment(db: Session, profile: LearnerProfile, misconception_id: str, correct: bool, evidence: list[str]) -> str:
     active, resolved, mastery, trajectory = list(profile.active_misconceptions or []), list(profile.resolved_misconceptions or []), dict(profile.mastery or {}), list(profile.trajectory or [])
     if correct:
