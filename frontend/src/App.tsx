@@ -1,14 +1,14 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { getBackendHealth, getDatabaseHealth } from './services/api'
+import { createAssignment, createClass, generateAssessment, getBackendHealth, getDatabaseHealth, getProjectCatalog, getProjectRecommendations, getTeacherDashboard, listClasses } from './services/api'
 import { getCurrentUser, signIn, signOut, signUp } from './services/auth'
 
-type View = 'home' | 'signin' | 'signup' | 'dashboard'
+type View = 'home' | 'signin' | 'signup' | 'dashboard' | 'teacher'
 type User = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>
 type Status = 'checking' | 'connected' | 'unavailable'
 
 const Logo = () => <div className="logo"><b>R</b><span>Re<span>:</span>Learn</span></div>
-const routeFor = (view: View) => view === 'dashboard' ? '/dashboard' : view === 'home' ? '/' : `/${view}`
-const viewForPath = (path: string): View => path === '/dashboard' ? 'dashboard' : path === '/signup' ? 'signup' : path === '/signin' ? 'signin' : 'home'
+const routeFor = (view: View) => view === 'dashboard' ? '/dashboard' : view === 'teacher' ? '/teacher' : view === 'home' ? '/' : `/${view}`
+const viewForPath = (path: string): View => path === '/dashboard' ? 'dashboard' : path === '/teacher' ? 'teacher' : path === '/signup' ? 'signup' : path === '/signin' ? 'signin' : 'home'
 
 export default function App() {
   const [view, setView] = useState<View>(() => viewForPath(window.location.pathname))
@@ -30,6 +30,7 @@ export default function App() {
 
   if (loading) return <div className="auth-loading">Checking your session…</div>
   if (view === 'dashboard' && !user) return <div className="auth-loading">Redirecting to sign in…</div>
+  if (view === 'teacher') return <TeacherDashboardView />
   if (view === 'home') return <Landing nav={navigate} />
   if (view === 'signin' || view === 'signup') return <Auth mode={view} nav={navigate} onAuthenticated={async () => { setUser(await getCurrentUser()); navigate('dashboard') }} />
   if (!user) return <div className="auth-loading">Redirecting to sign in…</div>
@@ -125,6 +126,202 @@ function Topic({ icon, title, meta, color }: { icon: string; title: string; meta
 
 function PlannerItem({ title, time, done = false }: { title: string; time: string; done?: boolean }) {
   return <div className={`planner-item ${done ? 'done' : ''}`}><span className="planner-check"><i className="bi bi-check" /></span><span><strong>{title}</strong><small>{time}</small></span></div>
+}
+
+function TeacherDashboardView() {
+  const [dashboard, setDashboard] = useState<any>(null)
+  const [projects, setProjects] = useState<any[]>([])
+  const [classes, setClasses] = useState<any[]>([])
+  const [title, setTitle] = useState('Loop Practice')
+  const [language, setLanguage] = useState('python')
+  const [difficulty, setDifficulty] = useState('beginner')
+  const [questionCount, setQuestionCount] = useState(2)
+  const [className, setClassName] = useState('Python Bootcamp')
+  const [classDescription, setClassDescription] = useState('Starter cohort for loop and condition practice')
+  const [status, setStatus] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const teacherId = 1
+
+  const refresh = async () => {
+    try {
+      const dashboardResponse = await getTeacherDashboard()
+      setDashboard(dashboardResponse)
+      const classesResponse = await listClasses(teacherId)
+      setClasses(classesResponse)
+      const projectResponse = await getProjectCatalog(language)
+      setProjects(projectResponse.projects)
+    } catch {
+      setDashboard(null)
+      setClasses([])
+      setProjects([])
+    }
+  }
+
+  useEffect(() => {
+    void refresh()
+  }, [])
+
+  const handleCreateClass = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setLoading(true)
+    try {
+      await createClass({ teacher_id: teacherId, name: className, language, description: classDescription })
+      setStatus('Class created successfully.')
+      setClassName('')
+      setClassDescription('')
+      await refresh()
+    } catch {
+      setStatus('Unable to create the class right now.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateAssignment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const selectedClass = classes[0]
+    if (!selectedClass) {
+      setStatus('Create a class before creating an assignment.')
+      return
+    }
+    setLoading(true)
+    try {
+      await createAssignment({
+        class_id: selectedClass.id,
+        teacher_id: teacherId,
+        title,
+        language,
+        difficulty,
+        question_count: questionCount,
+        question_types: ['mcq', 'output_prediction'],
+      })
+      setStatus('Assignment saved as a draft.')
+      setTitle('')
+    } catch {
+      setStatus('Unable to save the assignment.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const assignment = dashboard ? { total: dashboard.total_students, score: dashboard.average_mastery * 100 } : { total: 0, score: 0 }
+
+  return <div className="teacher-shell">
+    <style>{`
+      .teacher-shell { padding: 32px; background: #10141b; min-height: 100vh; }
+      .teacher-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+      .teacher-header h1 { margin: 8px 0 0; font-size: 2.2rem; }
+      .teacher-header small { color: #8ab6ff; letter-spacing: 0.12em; font-size: 0.7rem; }
+      .teacher-metrics { display: grid; grid-template-columns: repeat(3, minmax(170px, 1fr)); gap: 16px; margin-bottom: 22px; }
+      .metric-card, .panel, .class-form, .assignment-form { background: #151b25; border: 1px solid #2a3545; border-radius: 14px; padding: 18px 20px; }
+      .metric-card span { display: block; color: #8ca0bc; font-size: 0.74rem; letter-spacing: .08em; text-transform: uppercase; }
+      .metric-card strong { display: block; margin-top: 10px; font-size: 2rem; }
+      .teacher-panels { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 18px; margin-bottom: 18px; }
+      .panel h3, .class-form h3, .assignment-form h3 { margin: 0 0 14px; font-size: 1.12rem; }
+      .topic-row, .project-row, .risk-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #2d3848; }
+      .topic-row:first-child, .project-row:first-child, .risk-row:first-child { border-top: 0; }
+      .topic-row strong, .project-row strong, .risk-row strong { display: block; }
+      .topic-row span, .project-row span, .risk-row span { display: block; color: #9aa9bf; font-size: 0.85rem; }
+      .project-row small { color: #89a7ff; }
+      .teacher-form-grid { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 18px; margin-top: 18px; }
+      .class-form, .assignment-form { display: flex; flex-direction: column; gap: 12px; }
+      .class-form input, .class-form textarea, .assignment-form input, .assignment-form select { width: 100%; border: 1px solid #303b4d; background: #0d1117; color: #eaf1ff; border-radius: 10px; padding: 10px 12px; }
+      .class-form textarea { min-height: 74px; resize: vertical; }
+      .teaching-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      .status-box { margin-top: 12px; color: #9be7c1; font-size: 0.9rem; }
+    `}</style>
+    <header className="teacher-header">
+      <div>
+        <small>TEACHER DASHBOARD</small>
+        <h1>Class overview</h1>
+      </div>
+      <button className="primary mini">Create assessment</button>
+    </header>
+
+    <div className="teacher-metrics">
+      <div className="metric-card"><span>Total students</span><strong>{assignment.total}</strong></div>
+      <div className="metric-card"><span>Avg. mastery</span><strong>{assignment.score.toFixed(0)}%</strong></div>
+      <div className="metric-card"><span>At risk</span><strong>{dashboard?.at_risk_students?.length ?? 0}</strong></div>
+    </div>
+
+    <div className="teacher-panels">
+      <section className="panel">
+        <h3>Weak topics</h3>
+        {(dashboard?.weak_topics ?? [{ topic: 'loop boundaries', mastery: 0.72, weak_students: ['Current class'] }]).map((item: any) => (
+          <div className="topic-row" key={item.topic}> 
+            <div>
+              <strong>{item.topic}</strong>
+              <span>{item.weak_students.join(', ') || 'Needs attention'}</span>
+            </div>
+            <b>{(item.mastery * 100).toFixed(0)}%</b>
+          </div>
+        ))}
+      </section>
+
+      <section className="panel">
+        <h3>Project recommendations</h3>
+        {(projects.length ? projects : [{ title: 'Python Quiz Game', difficulty: 'beginner', description: 'Loop-based project recommendation for weak concept repair.', focus: ['C001'] }]).map((project: any) => (
+          <div className="project-row" key={project.title}>
+            <div>
+              <strong>{project.title}</strong>
+              <span>{project.description}</span>
+            </div>
+            <small>{project.difficulty}</small>
+          </div>
+        ))}
+      </section>
+    </div>
+
+    <div className="teacher-form-grid">
+      <form className="class-form" onSubmit={handleCreateClass}>
+        <h3>Create class</h3>
+        <input value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Class name" required />
+        <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+          <option value="python">Python</option>
+          <option value="c">C</option>
+          <option value="cpp">C++</option>
+          <option value="html">HTML</option>
+        </select>
+        <textarea value={classDescription} onChange={(event) => setClassDescription(event.target.value)} placeholder="Short description" />
+        <div className="teaching-actions">
+          <button type="submit" className="primary mini" disabled={loading}>{loading ? 'Saving…' : 'Create class'}</button>
+        </div>
+      </form>
+
+      <form className="assignment-form" onSubmit={handleCreateAssignment}>
+        <h3>Create assignment</h3>
+        <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Assignment title" required />
+        <select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
+          <option value="beginner">Beginner</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+        <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+          <option value="python">Python</option>
+          <option value="c">C</option>
+          <option value="cpp">C++</option>
+          <option value="html">HTML</option>
+        </select>
+        <input type="number" min={1} max={10} value={questionCount} onChange={(event) => setQuestionCount(Number(event.target.value) || 1)} />
+        <div className="teaching-actions">
+          <button type="submit" className="primary mini" disabled={loading}>{loading ? 'Saving…' : 'Create assignment'}</button>
+        </div>
+      </form>
+    </div>
+
+    <section className="panel risk-panel" style={{ marginTop: 18 }}>
+      <h3>At-risk students</h3>
+      {(dashboard?.at_risk_students ?? [{ student: 'Nikhil', reasons: ['multiple active misconceptions'] }]).map((entry: any) => (
+        <div className="risk-row" key={entry.student}>
+          <strong>{entry.student}</strong>
+          <span>{entry.reasons.join(', ')}</span>
+        </div>
+      ))}
+    </section>
+
+    {status && <div className="status-box">{status}</div>}
+  </div>
 }
 
 function Connection({ name, status }: { name: string; status: string }) {

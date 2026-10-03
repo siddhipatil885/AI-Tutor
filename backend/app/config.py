@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    database_url: str
+    database_url: str = "sqlite:///./relearn.db"
     frontend_origin: str = "http://localhost:5173"
     model_config = SettingsConfigDict(env_file=(".env", ".env.local", "../.env.local"), extra="ignore")
 

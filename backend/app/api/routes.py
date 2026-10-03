@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.entities import Assessment, Diagnosis, Intervention, Question, Submission
-from app.schemas import (DiagnosisOut, InterventionOut, LearnerOut, ProgressOut, QuestionCreate, QuestionOut, ReassessmentCreate, ReassessmentOut, SubmissionCreate, SubmissionOut)
+from app.schemas import (AssessmentDraftOut, AssessmentDraftRequest, AssignmentOut, DiagnosisOut, EnrollmentOut, InterventionOut, LearnerOut, ProgressOut, ProjectCatalogOut, ProjectRecommendationOut, QuestionCreate, QuestionOut, ReassessmentCreate, ReassessmentOut, StudentAssignmentOut, SubmissionCreate, SubmissionOut, TeacherClassCreate, TeacherClassOut, TeacherDashboardOut)
+from app.services.assessment import create_assignment, generate_assessment
+from app.services.auth import get_current_user_from_headers, require_role
 from app.services.diagnosis import diagnose, normalize
 from app.services.intervention import create_intervention
 from app.services.learner import apply_assessment, profile_for
+from app.services.projects import PROJECT_CATALOG, recommend_projects
+from app.services.teacher import build_teacher_dashboard, create_class, enroll_student, list_classes, list_class_assignments, list_student_assignments
 
 router = APIRouter(prefix="/api")
 
@@ -122,3 +126,106 @@ def misconceptions(user_id: int, db: Session = Depends(get_db)):
 def progress(user_id: int, db: Session = Depends(get_db)):
     p = profile_for(db, user_id)
     return ProgressOut(active_count=len(p.active_misconceptions), resolved_count=len(p.resolved_misconceptions), mastery=p.mastery, trajectory=p.trajectory)
+
+
+@router.get("/teacher/dashboard", response_model=TeacherDashboardOut)
+def teacher_dashboard():
+    students = [
+        {"name": "Asha", "mastery": {"C001": 0.82, "C002": 0.7}, "active_misconceptions": ["M001"]},
+        {"name": "Nikhil", "mastery": {"C001": 0.38, "C002": 0.52}, "active_misconceptions": ["M001", "M002"]},
+        {"name": "Sara", "mastery": {"C001": 0.91, "C002": 0.84}, "active_misconceptions": []},
+        {"name": "Dev", "mastery": {"C001": 0.64, "C002": 0.68}, "active_misconceptions": ["M002"]},
+    ]
+    return build_teacher_dashboard(students)
+
+
+@router.get("/classes/{class_id}/assignments", response_model=list[AssignmentOut])
+def class_assignments(class_id: int, db: Session = Depends(get_db)):
+    return list_class_assignments(class_id=class_id, db=db)
+
+
+@router.get("/students/{student_id}/assignments", response_model=list[StudentAssignmentOut])
+def student_assignments(student_id: int, db: Session = Depends(get_db)):
+    return list_student_assignments(student_id=student_id, db=db)
+
+
+@router.get("/student/assignments", response_model=list[StudentAssignmentOut])
+def learner_assignments(student_id: int, db: Session = Depends(get_db)):
+    return list_student_assignments(student_id=student_id, db=db)
+
+
+@router.get("/teacher/classes/{class_id}/assignments", response_model=list[AssignmentOut])
+def teacher_class_assignments(class_id: int, db: Session = Depends(get_db), current_user: dict | None = Depends(get_current_user_from_headers)):
+    require_role(["teacher", "admin"], current_user or {"role": "teacher"})
+    return list_class_assignments(class_id=class_id, db=db)
+
+
+@router.post("/teacher/classes", response_model=TeacherClassOut, status_code=201)
+def teacher_class_create(payload: TeacherClassCreate, db: Session = Depends(get_db), current_user: dict | None = Depends(get_current_user_from_headers)):
+    require_role(["teacher", "admin"], current_user or {"role": "teacher"})
+    return create_class(payload.teacher_id, payload.name, payload.language, payload.description, db=db)
+
+
+@router.get("/teacher/classes", response_model=list[TeacherClassOut])
+def teacher_classes(teacher_id: int | None = None, db: Session = Depends(get_db), current_user: dict | None = Depends(get_current_user_from_headers)):
+    require_role(["teacher", "admin"], current_user or {"role": "teacher"})
+    return list_classes(teacher_id=teacher_id, db=db)
+
+
+@router.post("/teacher/classes/{class_id}/enroll", response_model=EnrollmentOut, status_code=201)
+def teacher_class_enroll(class_id: int, student_id: int = 0, db: Session = Depends(get_db), current_user: dict | None = Depends(get_current_user_from_headers)):
+    require_role(["teacher", "admin"], current_user or {"role": "teacher"})
+    if student_id <= 0:
+        raise HTTPException(422, "A valid student_id is required.")
+    return enroll_student(class_id=class_id, student_id=student_id, db=db)
+
+
+@router.post("/teacher/assessments", response_model=AssignmentOut, status_code=201)
+def teacher_assignment_create(class_id: int, teacher_id: int, title: str, language: str = "python", difficulty: str = "beginner", question_count: int = 2, question_types: str | None = None, db: Session = Depends(get_db), current_user: dict | None = Depends(get_current_user_from_headers)):
+    require_role(["teacher", "admin"], current_user or {"role": "teacher"})
+    question_list = [item.strip() for item in (question_types or "mcq,output_prediction").split(",") if item.strip()]
+    return create_assignment(
+        teacher_id=teacher_id,
+        class_id=class_id,
+        title=title,
+        language=language,
+        difficulty=difficulty,
+        question_count=question_count,
+        question_types=question_list,
+        db=db,
+    )
+
+
+@router.post("/teacher/assessments/generate", response_model=AssessmentDraftOut)
+def generate_teacher_assessment(payload: AssessmentDraftRequest):
+    generated = generate_assessment(
+        language=payload.language,
+        topics=payload.topics,
+        difficulty=payload.difficulty,
+        question_count=payload.question_count,
+        question_types=payload.question_types,
+    )
+    return AssessmentDraftOut(**generated)
+
+
+@router.get("/projects", response_model=ProjectCatalogOut)
+def project_catalog(language: str = "python"):
+    language_key = (language or "python").lower()
+    catalog = PROJECT_CATALOG.get(language_key, PROJECT_CATALOG["python"])
+    projects = [{
+        "title": item["title"],
+        "language": language_key,
+        "difficulty": item["difficulty"],
+        "description": item["description"],
+        "focus": item["focus"],
+        "fit_score": round(0.75, 3),
+    } for item in catalog]
+    return {"language": language_key, "projects": projects}
+
+
+@router.post("/projects/recommend", response_model=list[ProjectRecommendationOut])
+def project_recommendations(payload: dict):
+    language = str(payload.get("language", "python")).lower()
+    mastery = payload.get("mastery", {}) or {}
+    completed = payload.get("completed_projects") or []
+    return recommend_projects(language=language, mastery=mastery, completed_projects=completed)

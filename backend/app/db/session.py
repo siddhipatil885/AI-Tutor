@@ -13,6 +13,11 @@ class Base(DeclarativeBase):
     pass
 
 
+from app.models import entities  # noqa: F401
+
+Base.metadata.create_all(bind=engine)
+
+
 def get_db():
     db = SessionLocal()
     try:

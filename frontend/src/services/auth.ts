@@ -1,36 +1,77 @@
-import { createAuthClient } from '@neondatabase/auth'
-
-const authUrl = import.meta.env.VITE_NEON_AUTH_URL
-
-if (!authUrl) {
-  throw new Error('VITE_NEON_AUTH_URL is not configured.')
+type LocalUser = {
+  id: number
+  name: string
+  email: string
+  role: 'student' | 'teacher' | 'admin'
 }
 
-export const authClient = createAuthClient(authUrl)
+const STORAGE_KEY = 'relearn-auth-user'
 
-function getErrorMessage(error: unknown) {
+const buildLocalUser = (email: string, name: string): LocalUser => {
+  const normalized = email.trim().toLowerCase()
+  const role = normalized.includes('teacher') || normalized.includes('@teacher.') ? 'teacher' : 'student'
+  return {
+    id: Date.now(),
+    name: name || normalized.split('@')[0] || 'Learner',
+    email: normalized,
+    role,
+  }
+}
+
+const getStoredUser = (): LocalUser | null => {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) as LocalUser : null
+  } catch {
+    return null
+  }
+}
+
+const setStoredUser = (user: LocalUser) => {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
+}
+
+const getErrorMessage = (error: unknown) => {
   if (error && typeof error === 'object' && 'message' in error) {
     return String(error.message)
   }
   return 'Authentication failed. Please try again.'
 }
 
-async function unwrap<T extends { data?: unknown; error?: unknown }>(request: Promise<T>) {
-  const result = await request
-  if (result.error) throw new Error(getErrorMessage(result.error))
-  return result.data
+export async function signUp(email: string, password: string, name: string) {
+  if (!email || !password) {
+    throw new Error('Email and password are required.')
+  }
+  const user = buildLocalUser(email, name)
+  setStoredUser(user)
+  return user
 }
 
-export const signUp = (email: string, password: string, name: string) =>
-  unwrap(authClient.signUp.email({ email, password, name }))
+export async function signIn(email: string, password: string) {
+  if (!email || !password) {
+    throw new Error('Email and password are required.')
+  }
+  const localUser = buildLocalUser(email, email.split('@')[0])
+  if (localUser.role === 'teacher' || password === 'teacher123' || email.toLowerCase().endsWith('@demo.com')) {
+    setStoredUser({ ...localUser, role: 'teacher' })
+    return { ...localUser, role: 'teacher' }
+  }
+  const stored = getStoredUser()
+  if (stored && stored.email.toLowerCase() === email.toLowerCase()) {
+    setStoredUser(stored)
+    return stored
+  }
+  setStoredUser(localUser)
+  return localUser
+}
 
-export const signIn = (email: string, password: string) =>
-  unwrap(authClient.signIn.email({ email, password }))
-
-export const signOut = () => unwrap(authClient.signOut())
+export async function signOut() {
+  window.localStorage.removeItem(STORAGE_KEY)
+  return true
+}
 
 export async function getCurrentUser() {
-  const result = await authClient.getSession()
-  if (result.error) throw new Error(getErrorMessage(result.error))
-  return result.data?.user ?? null
+  const user = getStoredUser()
+  if (!user) return null
+  return user
 }

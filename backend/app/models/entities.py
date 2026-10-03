@@ -15,6 +15,39 @@ class User(Base, Timestamped):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
+    role: Mapped[str] = mapped_column(String(30), default="student")
+    email: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+
+
+class TeacherClass(Base, Timestamped):
+    __tablename__ = "teacher_classes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(120))
+    language: Mapped[str] = mapped_column(String(40), default="python")
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class Enrollment(Base, Timestamped):
+    __tablename__ = "class_enrollments"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    class_id: Mapped[int] = mapped_column(ForeignKey("teacher_classes.id"))
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[str] = mapped_column(String(30), default="active")
+
+
+class Assignment(Base, Timestamped):
+    __tablename__ = "assignments"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    class_id: Mapped[int] = mapped_column(ForeignKey("teacher_classes.id"))
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    title: Mapped[str] = mapped_column(String(180))
+    language: Mapped[str] = mapped_column(String(40), default="python")
+    difficulty: Mapped[str] = mapped_column(String(30), default="beginner")
+    question_count: Mapped[int] = mapped_column(Integer, default=1)
+    question_types: Mapped[list] = mapped_column(JSON, default=list)
+    questions: Mapped[list] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(30), default="draft")
 
 
 class Concept(Base):

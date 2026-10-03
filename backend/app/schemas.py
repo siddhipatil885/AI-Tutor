@@ -79,3 +79,93 @@ class ProgressOut(BaseModel):
     resolved_count: int
     mastery: dict[str, float]
     trajectory: list[dict]
+
+
+class TeacherClassCreate(BaseModel):
+    teacher_id: int
+    name: str
+    language: str = "python"
+    description: Optional[str] = None
+
+
+class TeacherClassOut(BaseModel):
+    id: int
+    teacher_id: int
+    name: str
+    language: str
+    description: Optional[str] = None
+
+
+class EnrollmentOut(BaseModel):
+    id: int
+    class_id: int
+    student_id: int
+    status: str
+
+
+class AssignmentOut(BaseModel):
+    id: int
+    class_id: int
+    teacher_id: int
+    title: str
+    language: str
+    difficulty: str
+    question_count: int
+    question_types: list[str]
+    questions: list[dict]
+    status: str
+
+
+class StudentAssignmentOut(AssignmentOut):
+    class_name: Optional[str] = None
+
+
+class TeacherDashboardOut(BaseModel):
+    total_students: int
+    active_students: int
+    average_assessment_performance: float
+    average_mastery: float
+    average_concept_mastery: float
+    assignment_completion_rates: dict[str, float]
+    weak_topics: list[dict]
+    at_risk_students: list[dict]
+
+
+class AssessmentDraftRequest(BaseModel):
+    language: str = "python"
+    topics: list[str] = Field(default_factory=lambda: ["loop boundaries"])
+    difficulty: str = "beginner"
+    question_count: int = 3
+    question_types: list[str] = Field(default_factory=lambda: ["mcq", "output_prediction"])
+
+
+class AssessmentQuestionOut(BaseModel):
+    id: int
+    language: str
+    topic: str
+    question_type: str
+    difficulty: str
+    prompt: str
+    correct_answer: str
+    explanation: str
+    misconception_ids: list[str]
+
+
+class AssessmentDraftOut(BaseModel):
+    language: str
+    difficulty: str
+    questions: list[AssessmentQuestionOut]
+
+
+class ProjectRecommendationOut(BaseModel):
+    title: str
+    language: str
+    difficulty: str
+    description: str
+    focus: list[str]
+    fit_score: float
+
+
+class ProjectCatalogOut(BaseModel):
+    language: str
+    projects: list[ProjectRecommendationOut]

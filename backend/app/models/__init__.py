@@ -1,14 +1,31 @@
 from app.models.entities import (
     Assessment,
+    Assignment,
     Concept,
     Diagnosis,
+    Enrollment,
     Intervention,
     KnowledgeDocument,
     LearnerProfile,
     Misconception,
     Question,
     Submission,
+    TeacherClass,
     User,
 )
 
-__all__ = ["User", "Question", "Concept", "Misconception", "Submission", "Diagnosis", "KnowledgeDocument", "Intervention", "Assessment", "LearnerProfile"]
+__all__ = [
+    "User",
+    "TeacherClass",
+    "Enrollment",
+    "Assignment",
+    "Question",
+    "Concept",
+    "Misconception",
+    "Submission",
+    "Diagnosis",
+    "KnowledgeDocument",
+    "Intervention",
+    "Assessment",
+    "LearnerProfile",
+]
