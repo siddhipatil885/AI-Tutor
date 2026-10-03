@@ -8,12 +8,10 @@ type Status = 'checking' | 'connected' | 'unavailable'
 
 const Logo = () => <div className="logo"><b>R</b><span>Re<span>:</span>Learn</span></div>
 const routeFor = (view: View) => view === 'dashboard' ? '/dashboard' : view === 'home' ? '/' : `/${view}`
+const viewForPath = (path: string): View => path === '/dashboard' ? 'dashboard' : path === '/signup' ? 'signup' : path === '/signin' ? 'signin' : 'home'
 
 export default function App() {
-  const [view, setView] = useState<View>(() => {
-    const path = window.location.pathname
-    return path === '/dashboard' ? 'dashboard' : path === '/signup' ? 'signup' : path === '/signin' ? 'signin' : 'home'
-  })
+  const [view, setView] = useState<View>(() => viewForPath(window.location.pathname))
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const navigate = (next: View) => { window.history.pushState({}, '', routeFor(next)); setView(next) }
@@ -22,7 +20,7 @@ export default function App() {
     getCurrentUser().then(setUser).catch(() => setUser(null)).finally(() => setLoading(false))
   }, [])
   useEffect(() => {
-    const onPopState = () => setView(routeFor(window.location.pathname === '/dashboard' ? 'dashboard' : window.location.pathname === '/signup' ? 'signup' : window.location.pathname === '/signin' ? 'signin' : 'home') as View)
+    const onPopState = () => setView(viewForPath(window.location.pathname))
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
