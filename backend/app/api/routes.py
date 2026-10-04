@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.entities import Assessment, Diagnosis, Intervention, Question, Submission
-from app.schemas import (CodeSubmissionCreate, DiagnosisOut, InterventionOut, JudgeResultOut, LearnerOut, ProgressOut, QuestionCreate, QuestionOut, ReassessmentCreate, ReassessmentOut, SubmissionCreate, SubmissionOut)
+from app.schemas import (CodeDiagnosisCreate, CodeSubmissionCreate, DiagnosisOut, InterventionOut, JudgeResultOut, LearnerOut, ProgressOut, QuestionCreate, QuestionOut, ReassessmentCreate, ReassessmentOut, SubmissionCreate, SubmissionOut)
 from app.services.diagnosis import diagnose, normalize
 from app.services.intervention import create_intervention
 from app.services.judge import judge_python_submission
@@ -82,6 +82,24 @@ def judge_python(payload: CodeSubmissionCreate):
     if payload.language.lower() != "python":
         raise HTTPException(400, "This judge currently supports Python only.")
     return judge_python_submission(payload.code, payload.problem_id, payload.function_name, payload.tests)
+
+
+@router.post("/diagnose/code")
+def diagnose_code(payload: CodeDiagnosisCreate):
+    try:
+        import sys
+        import os
+        # Add the root directory to sys.path so we can import 'ml'
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+        if root_dir not in sys.path:
+            sys.path.insert(0, root_dir)
+            
+        from ml.src.inference import predict
+        return predict(code=payload.code, problem_context=payload.problem_context)
+    except ImportError as e:
+        raise HTTPException(500, f"ML subsystem not configured or missing dependencies: {e}")
+    except Exception as e:
+        raise HTTPException(500, f"Inference failed: {e}")
 
 
 @router.post("/interventions", response_model=InterventionOut, status_code=201)

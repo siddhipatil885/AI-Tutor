@@ -47,6 +47,10 @@ class CodeSubmissionCreate(BaseModel):
     code: str = Field(min_length=1)
     tests: list[dict[str, Any]] = Field(default_factory=list)
 
+class CodeDiagnosisCreate(BaseModel):
+    problem_context: str = ""
+    code: str = Field(min_length=1)
+
 
 class JudgeResultOut(BaseModel):
     passed: bool
