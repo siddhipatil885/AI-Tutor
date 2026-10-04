@@ -15,6 +15,7 @@ from sqlalchemy import engine_from_config, pool
 if os.getenv("DATABASE_URL_UNPOOLED"):
     os.environ.setdefault("DATABASE_URL", os.environ["DATABASE_URL_UNPOOLED"])
 
+from app.config import Settings
 from app.db.session import Base
 import app.models  # noqa: F401 - registers SQLAlchemy models with Base metadata.
 
@@ -33,7 +34,7 @@ def migration_url() -> str:
         raise RuntimeError("Stage 4 migrations require a PostgreSQL direct connection URL.")
     if "-pooler" in url:
         raise RuntimeError("DATABASE_URL_UNPOOLED must be a direct Neon host, not a -pooler host.")
-    return url
+    return Settings(database_url=url).sqlalchemy_database_url
 
 
 def run_migrations_offline() -> None:

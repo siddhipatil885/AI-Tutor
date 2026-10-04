@@ -20,7 +20,8 @@ def _jwks_client(url: str) -> jwt.PyJWKClient:
 
 def verify_access_token(token: str) -> dict:
     settings = get_settings()
-    if not settings.neon_auth_issuer or not settings.neon_auth_jwks_url:
+    issuer = getattr(settings, "neon_auth_issuer", "") or getattr(settings, "neon_auth_base_url", "")
+    if not issuer or not settings.neon_auth_jwks_url:
         raise HTTPException(status_code=503, detail="Authentication is not configured.")
 
     try:
@@ -34,7 +35,7 @@ def verify_access_token(token: str) -> dict:
             signing_key,
             algorithms=[algorithm],
             audience=settings.neon_auth_audience,
-            issuer=settings.neon_auth_issuer,
+            issuer=issuer,
             options={"require": ["exp", "iss", "sub", "aud"]},
         )
     except PyJWKClientConnectionError as exc:

@@ -15,14 +15,15 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp ../.env.example .env
+cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
-Create `backend/.env` from the root `.env.example` and replace the Neon placeholders with the **pooled** connection string from your Neon dashboard. It should use the SQLAlchemy psycopg form:
+Create `backend/.env` from `backend/.env.example` and replace the placeholders with your Neon values. Put the **pooled** connection string in `DATABASE_URL` and the direct, non-pooler string in `DATABASE_URL_UNPOOLED` for migrations. You can paste Neon’s standard `postgresql://` URLs; the backend selects the installed psycopg v3 driver automatically.
 
 ```env
-DATABASE_URL=postgresql+psycopg://USER:PASSWORD@YOUR-HOST-pooler.REGION.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=postgresql://USER:PASSWORD@YOUR-HOST-pooler.REGION.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL_UNPOOLED=postgresql://USER:PASSWORD@YOUR-HOST.REGION.aws.neon.tech/neondb?sslmode=require
 ```
 
 Neon requires TLS, so retain `sslmode=require`. The backend uses the database URL directly and creates missing MVP tables on startup. SQLite remains a local-only fallback if `DATABASE_URL` is omitted.
@@ -48,12 +49,9 @@ npm run dev
 ```
 
 Open the Vite URL (usually `http://localhost:5173`). The API endpoint is configured by `VITE_API_URL`, defaulting to `http://localhost:8000/api`.
-Set `VITE_NEON_AUTH_URL` in `frontend/.env.local` to the same Neon Auth base URL used by the backend. Sign-in fails closed when this is missing.
-Keep the FastAPI backend running in a separate terminal while using the frontend. Neon handles the credential check, then the frontend calls the API at `/api/auth/me` to load the application profile; if that API is unavailable, start the backend or set `VITE_API_URL` to its reachable URL.
+Create `frontend/.env.local` from `frontend/.env.example`, then set `VITE_NEON_AUTH_URL` to the Neon Auth base URL for your project (the same value as the backend's `NEON_AUTH_ISSUER`; `NEON_AUTH_BASE_URL` is also accepted by the backend). Keep the FastAPI backend running in a separate terminal; Neon verifies credentials, then the frontend calls `/api/auth/me` to load the application profile. If the API is hosted elsewhere, set `VITE_API_URL` to its reachable `/api` URL. Restart Vite after changing frontend environment values.
 
-## Authentication integration
-
-Authentication is not implemented in this workspace yet. When connecting the login provider, import `announceAuthState` from `frontend/src/services/auth.ts` and call `announceAuthState({ userId: user.id })` after login or session restoration. Call `announceAuthState(null)` on logout. The onboarding tour opens once for each signed-in user; no credentials or provider-specific secrets are handled by Re:Learn's UI.
+Authentication uses Neon Auth for sign-up, sign-in, and sessions. The backend verifies Neon JWTs with the configured issuer and JWKS URL and creates the Re:Learn profile in PostgreSQL on first sign-in. Keep database credentials and Neon storage keys in ignored local environment files; only `VITE_` values are exposed to the browser. Rotate any credentials that have been shared publicly.
 
 ## API flow
 
