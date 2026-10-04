@@ -12,3 +12,9 @@ vite.config.d.ts
 .neon
 .env.local
 .agents/
+
+# Machine Learning
+ml/models/
+ml/data/processed/
+*.log
+*.csv

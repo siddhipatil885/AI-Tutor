@@ -1,0 +1,21 @@
+{
+  "experiment": "exp6_full_fusion",
+  "fusion_method": "L2-norm(embedding) || tree_sitter || compiler_signals",
+  "compiler_features": [
+    "compiler_parse_success",
+    "feedback_loop_iterations",
+    "eval_confidence"
+  ],
+  "compiler_feature_validity": {
+    "compiler_parse_success": "Valid at inference \u2014 syntax check only",
+    "feedback_loop_iterations": "Valid at inference \u2014 available from AST/linting pass",
+    "eval_confidence": "Valid at inference \u2014 derived from structural metrics"
+  },
+  "classifier": "LogisticRegression(C=5, balanced)",
+  "random_seed": 42,
+  "leakage_excluded": [
+    "reasoning",
+    "global_misconception_index",
+    "exhibits_misconception"
+  ]
+}
