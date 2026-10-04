@@ -1,0 +1,10 @@
+{
+  "experiment": "exp5_fusion",
+  "fusion_method": "L2-norm(embedding) || tree_sitter_features",
+  "classifier": "LogisticRegression(C=5, balanced)",
+  "random_seed": 42,
+  "leakage_excluded": [
+    "reasoning",
+    "global_misconception_index"
+  ]
+}
