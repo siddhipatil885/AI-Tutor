@@ -1,4 +1,4 @@
-import { makeIntervention, submitAnswer, diagnoseCode } from './api'
+import { makeIntervention, submitAnswer, diagnoseTutor } from './api'
 import type { Diagnosis, Intervention } from '../types'
 
 export type TaskEvidence = { taskId: string; conceptId?: string; output: string; code?: string; allPassed?: boolean; userId: number; questionId: number }
@@ -11,9 +11,12 @@ export interface LearningResourceAdapter { getResource(input: { conceptId: strin
 export const existingDiagnosisAdapter: DiagnosisAdapter = {
   async diagnose(evidence) {
     if (evidence.code) {
-        const mlResult = await diagnoseCode({ problem_id: evidence.taskId, language: 'python', code: evidence.code })
+        const mlResult = await diagnoseTutor({ user_id: evidence.userId, question_id: evidence.questionId, problem_id: evidence.taskId, language: 'python', code: evidence.code })
         
         let evidenceStrings = [mlResult.predicted_misconception.description || mlResult.predicted_misconception.name]
+        if (mlResult.gemini_hint) {
+             evidenceStrings.unshift(`💡 Hint: ${mlResult.gemini_hint}`)
+        }
         if (mlResult.top_predictions && mlResult.top_predictions.length > 1) {
              const alt = mlResult.top_predictions[1]
              evidenceStrings.push(`Alternative: ${alt.description || alt.misconception} (${Math.round(alt.confidence * 100)}%)`)
@@ -30,10 +33,15 @@ export const existingDiagnosisAdapter: DiagnosisAdapter = {
             needs_intervention: false
         }
         
-        const submission = await submitAnswer(evidence.questionId, evidence.output)
-        return { diagnosis, submissionId: submission.id }
+        // Record in the database (background/best-effort) to keep the learning flow intact
+        try {
+            const submission = await submitAnswer(evidence.questionId, evidence.code || evidence.output)
+            return { diagnosis, submissionId: submission.id }
+        } catch (e) {
+            return { diagnosis, submissionId: diagnosis.id }
+        }
     }
-    const submission = await submitAnswer(evidence.questionId, evidence.output)
+    const submission = await submitAnswer(evidence.questionId, evidence.code || evidence.output)
     return { diagnosis: submission.diagnosis, submissionId: submission.id }
   },
 }

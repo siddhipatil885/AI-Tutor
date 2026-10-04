@@ -114,3 +114,5 @@ export const makeIntervention = (submissionId: number) =>
   post<Intervention>(`/interventions?submission_id=${submissionId}`, {})
 export const diagnoseCode = (payload: { problem_id: string; language: string; code: string }) =>
   post<CodeDiagnosisResult>('/diagnose/code', payload)
+export const diagnoseTutor = (payload: { user_id: number; question_id: number; problem_id: string; language: string; code: string }) =>
+  post<CodeDiagnosisResult & { gemini_hint?: string }>('/diagnose/tutor', payload)

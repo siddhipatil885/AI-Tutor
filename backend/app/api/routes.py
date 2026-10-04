@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.entities import Assessment, Assignment, AssignmentAttempt, Diagnosis, Enrollment, Institution, InstitutionClass, InstitutionMembership, Intervention, Lab, LearnerProfile, Question, Submission, TeacherClass, User
-from app.schemas import (AssessmentDraftOut, AssessmentDraftRequest, AssignmentAttemptOut, AssignmentOut, AssignmentReviewOut, AssignmentSubmissionCreate, CodeDiagnosisCreate, CodeSubmissionCreate, DiagnosisOut, EnrollmentOut, InstitutionClassOut, InstitutionCreate, InstitutionMemberCreate, InstitutionMemberOut, InstitutionOut, InstitutionReportOut, InterventionOut, JudgeResultOut, LabCreate, LabOut, LabSubmissionCreate, LabSubmissionOut, LearnerOut, ProgressOut, ProjectCatalogOut, ProjectRecommendationOut, QuestionCreate, QuestionOut, QuestionPromptOut, ReassessmentCreate, ReassessmentOut, StudentAssignmentOut, StudentLabOut, SubmissionCreate, SubmissionOut, TeacherClassCreate, TeacherClassOut, TeacherDashboardOut)
+from app.schemas import (AssessmentDraftOut, AssessmentDraftRequest, AssignmentAttemptOut, AssignmentOut, AssignmentReviewOut, AssignmentSubmissionCreate, CodeDiagnosisCreate, CodeSubmissionCreate, DiagnosisOut, EnrollmentOut, InstitutionClassOut, InstitutionCreate, InstitutionMemberCreate, InstitutionMemberOut, InstitutionOut, InstitutionReportOut, InterventionOut, JudgeResultOut, LabCreate, LabOut, LabSubmissionCreate, LabSubmissionOut, LearnerOut, ProgressOut, ProjectCatalogOut, ProjectRecommendationOut, QuestionCreate, QuestionOut, QuestionPromptOut, ReassessmentCreate, ReassessmentOut, StudentAssignmentOut, StudentLabOut, SubmissionCreate, SubmissionOut, TeacherClassCreate, TeacherClassOut, TeacherDashboardOut, TutorDiagnosisCreate)
 from app.services.assessment import create_assignment, generate_assessment
 from app.services.auth import get_current_user_from_headers, require_role
 from app.services.diagnosis import diagnose, normalize
@@ -150,6 +150,65 @@ def diagnose_code(payload: CodeDiagnosisCreate):
         from ml.src.inference import predict
         model_path = os.path.join(root_dir, "ml", "models", "exp5_fusion.pkl")
         return predict(code=payload.code, problem_context=payload.problem_id, model_path=model_path)
+    except HTTPException:
+        raise
+    except ImportError as e:
+        raise HTTPException(500, f"ML subsystem not configured or missing dependencies: {e}")
+    except Exception as e:
+        raise HTTPException(500, f"Inference failed: {e}")
+@router.post("/diagnose/tutor")
+def diagnose_tutor(payload: TutorDiagnosisCreate, db: Session = Depends(get_db)):
+    try:
+        if payload.language.lower() != "python":
+            raise HTTPException(400, "Only Python code is supported for diagnosis.")
+        if not payload.code or not payload.code.strip():
+            raise HTTPException(400, "Empty code provided.")
+        
+        import sys
+        import os
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+        if root_dir not in sys.path:
+            sys.path.insert(0, root_dir)
+            
+        from ml.src.inference import predict
+        model_path = os.path.join(root_dir, "ml", "models", "exp5_fusion.pkl")
+        
+        # 1. Get deterministic ML diagnosis
+        ml_result = predict(code=payload.code, problem_context=payload.problem_id, model_path=model_path)
+        
+        # 2. Gather context for Gemini
+        question = db.get(Question, payload.question_id)
+        question_context = question.prompt if question else "Analyze the provided python code for a loop boundary bug."
+            
+        # Get past 5 submissions
+        past_subs = db.query(Submission).filter_by(user_id=payload.user_id, question_id=payload.question_id).order_by(Submission.created_at.desc()).limit(5).all()
+        past_subs.reverse() # chronological
+        past_code_history = [s.answer for s in past_subs if s.answer and s.answer.strip()]
+        
+        # 3. Call Gemini Tutor
+        from app.services.gemini_tutor import generate_hint
+        
+        misconception_name = ml_result["predicted_misconception"]["name"]
+        misconception_desc = ml_result["predicted_misconception"]["description"]
+        
+        # If it's classified as correct (0), we might not need a hint, but we can let Gemini decide or skip it.
+        # But we'll just run it anyway as a helper if it's called.
+        if ml_result["predicted_misconception"]["id"] == "0" or misconception_name.lower() == "correct":
+            gemini_hint = "Your code looks correct! Great job!"
+        else:
+            gemini_hint = generate_hint(
+                task_prompt=question_context,
+                expected_answer=question.expected_answer if question else "A working loop without boundary errors.",
+                user_code=payload.code,
+                misconception_name=misconception_name,
+                misconception_description=misconception_desc,
+                past_submissions=past_code_history
+            )
+        
+        # 4. Attach to response
+        ml_result["gemini_hint"] = gemini_hint
+        return ml_result
+        
     except HTTPException:
         raise
     except ImportError as e:

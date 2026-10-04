@@ -60,6 +60,10 @@ class CodeDiagnosisCreate(BaseModel):
     language: str = "python"
     code: str = Field(min_length=1)
 
+class TutorDiagnosisCreate(CodeDiagnosisCreate):
+    user_id: int
+    question_id: int
+
 
 class JudgeResultOut(BaseModel):
     passed: bool

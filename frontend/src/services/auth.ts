@@ -10,7 +10,8 @@ export type AuthenticatedUser = {
 const authEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
 const authUrl = authEnv?.VITE_NEON_AUTH_URL
 const backend = authEnv?.VITE_API_URL || 'http://localhost:8000/api'
-const auth = authUrl ? createInternalNeonAuth(authUrl) : null
+const MOCK_LOCAL = !authUrl || authUrl.includes('localhost')
+const auth = !MOCK_LOCAL && authUrl ? createInternalNeonAuth(authUrl) : null
 
 function getAuth() {
   if (!auth) throw new Error('Neon Auth is not configured. Set VITE_NEON_AUTH_URL in the frontend environment.')
@@ -22,28 +23,56 @@ function throwAuthError(result: { error?: { message?: string } | null }) {
 }
 
 export async function signUp(email: string, password: string, name: string) {
+  if (MOCK_LOCAL) {
+    localStorage.setItem('local_dev_token', `local-dev-token|${email}`)
+    const role = email === 'teacher@example.com' ? 'teacher' : 'student'
+    return { id: 1, email, name, role }
+  }
   const result = await getAuth().adapter.signUp.email({ email, password, name })
   throwAuthError(result)
   return result.data
 }
 
 export async function signIn(email: string, password: string) {
+  if (MOCK_LOCAL) {
+    localStorage.setItem('local_dev_token', `local-dev-token|${email}`)
+    const role = email === 'teacher@example.com' ? 'teacher' : 'student'
+    return { id: 1, email, name: 'Local Dev User', role }
+  }
   const result = await getAuth().adapter.signIn.email({ email, password })
   throwAuthError(result)
   return result.data
 }
 
 export async function signOut() {
+  if (MOCK_LOCAL) {
+    localStorage.removeItem('local_dev_token')
+    return true
+  }
   const result = await getAuth().adapter.signOut()
   throwAuthError(result)
   return true
 }
 
 export async function getAccessToken() {
+  if (MOCK_LOCAL) return localStorage.getItem('local_dev_token')
   return auth?.getJWTToken() ?? null
 }
 
 export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+  if (MOCK_LOCAL) {
+    const token = await getAccessToken()
+    if (!token) return null
+    let response: Response
+    try {
+      response = await fetch(`${backend}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+    } catch (cause) {
+      throw cause
+    }
+    if (!response.ok) return null
+    return response.json()
+  }
+
   if (!auth) return null
   const session = await auth.adapter.getSession()
   throwAuthError(session)

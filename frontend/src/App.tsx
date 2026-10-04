@@ -3,14 +3,15 @@ import { getBackendHealth, getDatabaseHealth, getStudentAssignmentAttempts, getS
 import { getCurrentUser, signIn, signOut, signUp } from './services/auth'
 import InstitutionDashboard from './InstitutionDashboard'
 import TeacherDashboard from './TeacherDashboard'
+import LearningWorkspace from './LearningWorkspace'
 
-type View = 'home' | 'signin' | 'signup' | 'dashboard' | 'teacher' | 'institution'
+type View = 'home' | 'signin' | 'signup' | 'dashboard' | 'teacher' | 'institution' | 'journey'
 type User = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>
 type Status = 'checking' | 'connected' | 'unavailable'
 
 const Logo = () => <div className="logo"><b>R</b><span>Re<span>:</span>Learn</span></div>
-const routeFor = (view: View) => view === 'dashboard' ? '/dashboard' : view === 'teacher' ? '/teacher' : view === 'institution' ? '/institution' : view === 'home' ? '/' : `/${view}`
-const viewForPath = (path: string): View => path === '/dashboard' ? 'dashboard' : path.startsWith('/teacher') ? 'teacher' : path === '/institution' ? 'institution' : path === '/signup' ? 'signup' : path === '/signin' ? 'signin' : 'home'
+const routeFor = (view: View) => view === 'dashboard' ? '/dashboard' : view === 'teacher' ? '/teacher' : view === 'institution' ? '/institution' : view === 'journey' ? '/journey' : view === 'home' ? '/' : `/${view}`
+const viewForPath = (path: string): View => path === '/dashboard' ? 'dashboard' : path.startsWith('/teacher') ? 'teacher' : path === '/institution' ? 'institution' : path === '/journey' ? 'journey' : path === '/signup' ? 'signup' : path === '/signin' ? 'signin' : 'home'
 
 export default function App() {
   const [view, setView] = useState<View>(() => viewForPath(window.location.pathname))
@@ -51,6 +52,7 @@ export default function App() {
   if (view === 'home') return <Landing nav={navigate} />
   if (view === 'signin' || view === 'signup') return <Auth mode={view} nav={navigate} onAuthenticated={async () => { const nextUser = await getCurrentUser(); setUser(nextUser); navigate(nextUser && (nextUser.role === 'teacher' || nextUser.role === 'admin') ? 'teacher' : 'dashboard') }} />
   if (!user) return <div className="auth-loading">Redirecting to sign in…</div>
+  if (view === 'journey') return <LearningWorkspace user={user} onComplete={() => navigate('dashboard')} onBack={() => navigate('dashboard')} />
   return <Dashboard user={user} nav={navigate} onLogout={async () => { await signOut(); setUser(null); navigate('signin') }} />
 }
 function Landing({ nav }: { nav: (view: View) => void }) {
@@ -98,6 +100,14 @@ function Dashboard({ user, nav, onLogout }: { user: User; nav: (view: View) => v
   const [assignmentSubmitBusy, setAssignmentSubmitBusy] = useState(false)
   const [assignmentSubmitError, setAssignmentSubmitError] = useState('')
   const [assignmentSubmitNotice, setAssignmentSubmitNotice] = useState('')
+  const [completedJourney, setCompletedJourney] = useState(false)
+
+  useEffect(() => {
+    if (localStorage.getItem('journey_binary_search_completed')) {
+      setCompletedJourney(true)
+    }
+  }, [refreshKey, nav])
+
   useEffect(() => {
     getBackendHealth().then(result => setBackend(result.status === 'ok' ? 'connected' : 'unavailable')).catch(() => setBackend('unavailable'))
     getDatabaseHealth().then(result => setDatabase(result.status === 'ok' ? 'connected' : 'unavailable')).catch(() => setDatabase('unavailable'))
@@ -183,10 +193,46 @@ function Dashboard({ user, nav, onLogout }: { user: User; nav: (view: View) => v
     <main className="workspace dashboard-workspace">
       <header className="dashboard-header" id="overview">
         <div><small>LEARNING SPACE</small><h1>Welcome, {firstName}.</h1><p>Your assignments and live labs from enrolled classes.</p></div>
-        <div className="header-actions"><button className="outline-button mini" onClick={() => setRefreshKey(key => key + 1)}><i className="bi bi-arrow-clockwise" /> Refresh</button></div>
+        <div className="header-actions">
+          <button className="primary" onClick={() => nav('journey')}><i className="bi bi-play-fill" /> Start Learning Journey</button>
+          <button className="outline-button mini" onClick={() => setRefreshKey(key => key + 1)}><i className="bi bi-arrow-clockwise" /> Refresh</button>
+        </div>
       </header>
       <div className="dashboard-grid">
         <section className="dashboard-main">
+          
+          <section id="journeys" style={{ marginBottom: '32px' }}>
+            <div className="section-heading"><div><small>INDEPENDENT LEARNING</small><h2>Learning Journeys</h2></div></div>
+            <div className="planner-card" style={{ marginTop: 12 }}>
+               {completedJourney ? (
+                  <article className="student-assignment" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '16px', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <div style={{ width: '48px', height: '48px', background: '#dcfce7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <i className="bi bi-check-lg" style={{ color: '#166534', fontSize: '1.5rem' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <strong style={{ color: '#166534', fontSize: '1.15rem', display: 'block', marginBottom: '4px' }}>Binary Search Masterclass</strong>
+                        <small style={{ color: '#15803d', display: 'flex', gap: '12px', fontSize: '0.85rem', fontWeight: 500 }}>
+                          <span><i className="bi bi-star-fill" style={{ color: '#eab308' }} /> 100% Mastery</span>
+                          <span><i className="bi bi-tag-fill" /> Array, Algorithm</span>
+                          <span><i className="bi bi-calendar-check" /> Completed Just Now</span>
+                        </small>
+                      </div>
+                      <button className="outline-button mini" style={{ background: '#fff', borderColor: '#bbf7d0', color: '#166534', fontWeight: 600 }} onClick={() => nav('journey')}>
+                        Review Journey
+                      </button>
+                    </div>
+                  </article>
+               ) : (
+                  <div style={{ padding: '32px 24px', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+                    <i className="bi bi-compass" style={{ fontSize: '2rem', color: '#94a3b8', marginBottom: '12px', display: 'block' }} />
+                    <strong style={{ display: 'block', marginBottom: '4px', color: '#334155' }}>No completed journeys yet</strong>
+                    <span>Click "Start Learning Journey" to begin your first masterclass!</span>
+                  </div>
+               )}
+            </div>
+          </section>
+
           <section id="assignments">
             <div className="section-heading"><div><small>ASSIGNED WORK</small><h2>Assignments</h2></div></div>
             <div className="planner-card" style={{ marginTop: 12 }}>

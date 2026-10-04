@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     neon_auth_audience: str = "authenticated"
     neon_auth_teacher_emails: str = ""
     neon_auth_admin_emails: str = ""
+    gemini_api_key: str | None = None
+    groq_api_key: str | None = None
     model_config = SettingsConfigDict(env_file=(".env", ".env.local", "../.env.local"), extra="ignore")
 
     @property
