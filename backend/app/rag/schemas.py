@@ -1,18 +1,26 @@
 """Strict contracts shared by ingestion, retrieval, and intervention callers."""
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ContentType(StrEnum):
-    CONCEPT_EXPLANATION = "concept_explanation"
-    MISCONCEPTION_EXAMPLE = "misconception_example"
-    WORKED_EXAMPLE = "worked_example"
-    INTERVENTION_STRATEGY = "intervention_strategy"
-    GUIDED_HINT = "guided_hint"
-    TARGETED_PRACTICE = "targeted_practice"
+    EXPLANATION = "explanation"
+    INCORRECT_REASONING = "incorrect_reasoning"
+    CORRECT_REASONING = "correct_reasoning"
+    INTERVENTION = "intervention"
+    HINT = "hint"
+    PRACTICE = "practice"
+    # Compatibility names for earlier RAG contracts; new corpus data uses the
+    # controlled values above.
+    CONCEPT_EXPLANATION = "explanation"
+    MISCONCEPTION_EXAMPLE = "incorrect_reasoning"
+    WORKED_EXAMPLE = "correct_reasoning"
+    INTERVENTION_STRATEGY = "intervention"
+    GUIDED_HINT = "hint"
+    TARGETED_PRACTICE = "practice"
 
 
 class Difficulty(StrEnum):
@@ -21,15 +29,22 @@ class Difficulty(StrEnum):
     ADVANCED = "advanced"
 
 
+class KnowledgeStage(StrEnum):
+    INTERVENTION = "intervention"
+    REASSESSMENT = "reassessment"
+
+
 class KnowledgeMetadata(BaseModel):
     """Traceable pedagogical metadata attached to every source and chunk."""
 
-    model_config = ConfigDict(extra="forbid")
-    topic: str = Field(min_length=1, examples=["loops"])
-    concept_id: str = Field(min_length=1, examples=["C001"])
-    misconception_id: str | None = Field(default=None, examples=["M001"])
+    model_config = ConfigDict(extra="allow")
+    topic: str = Field(min_length=1, examples=["LOOPS"])
+    category: str = Field(min_length=1, examples=["LOOPS"])
+    concept_id: str = Field(min_length=1, examples=["C-LOOPS"])
+    misconception_id: str = Field(min_length=1, examples=["LOOP-01"])
     content_type: ContentType
     difficulty: Difficulty
+    stage: KnowledgeStage
     prerequisites: list[str] = Field(default_factory=list)
     source: str = Field(min_length=1, description="Human-readable, traceable source label.")
     educational_purpose: str = Field(min_length=1)
@@ -40,9 +55,24 @@ class KnowledgeDocumentInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     document_id: str = Field(min_length=1)
+    misconception_id: str = Field(min_length=1)
+    category: str = Field(min_length=1)
+    concept_id: str = Field(min_length=1)
+    content_type: ContentType
+    difficulty: Difficulty
+    stage: KnowledgeStage
     content: str = Field(min_length=1)
+    source: str = Field(min_length=1)
+    educational_purpose: str = Field(min_length=1)
     metadata: KnowledgeMetadata
     source_path: str = Field(min_length=1)
+
+    @field_validator("content")
+    @classmethod
+    def non_blank_content(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Content cannot be blank.")
+        return value
 
 
 class KnowledgeChunk(BaseModel):
@@ -90,8 +120,14 @@ class RetrievalResult(BaseModel):
 class IngestionReport(BaseModel):
     source_path: str
     documents_seen: int = Field(ge=0)
-    chunks_created: int = Field(ge=0)
-    chunks_upserted: int = Field(ge=0)
+    documents_validated: int = Field(default=0, ge=0)
+    embeddings_generated: int = Field(default=0, ge=0)
+    documents_inserted: int = Field(default=0, ge=0)
+    documents_updated: int = Field(default=0, ge=0)
+    # Retained for callers built against the Stage 1 RAG scaffold. Stage 5
+    # writes one curated document per record and does not perform chunking.
+    chunks_created: int = Field(default=0, ge=0)
+    chunks_upserted: int = Field(default=0, ge=0)
     errors: list[str] = Field(default_factory=list)
 
 

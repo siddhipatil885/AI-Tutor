@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -46,6 +46,28 @@ class DiagnosisOut(BaseModel):
 class SubmissionOut(BaseModel):
     id: int
     diagnosis: DiagnosisOut
+
+
+class CodeSubmissionCreate(BaseModel):
+    problem_id: str
+    language: str = "python"
+    function_name: str
+    code: str = Field(min_length=1)
+    tests: list[dict[str, Any]] = Field(default_factory=list)
+
+class CodeDiagnosisCreate(BaseModel):
+    problem_id: str = ""
+    language: str = "python"
+    code: str = Field(min_length=1)
+
+
+class JudgeResultOut(BaseModel):
+    passed: bool
+    problem_id: str
+    function_name: str
+    failed_tests: list[dict[str, Any]]
+    compiler_error: bool
+    runtime_error: bool
 
 
 class InterventionOut(BaseModel):

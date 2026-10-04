@@ -9,7 +9,7 @@ from app.db.session import Base, engine
 
 app = FastAPI(title="Re:Learn API", version="0.1.0")
 settings = get_settings()
-allowed_origins = settings.frontend_origins or [settings.frontend_origin]
+allowed_origins = settings.frontend_origin_list
 Base.metadata.create_all(bind=engine)
 app.add_middleware(
     CORSMiddleware,

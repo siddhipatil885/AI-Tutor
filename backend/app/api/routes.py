@@ -4,12 +4,13 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.entities import Assessment, Assignment, AssignmentAttempt, Diagnosis, Enrollment, Institution, InstitutionClass, InstitutionMembership, Intervention, Lab, LearnerProfile, Question, Submission, TeacherClass, User
-from app.schemas import (AssessmentDraftOut, AssessmentDraftRequest, AssignmentAttemptOut, AssignmentOut, AssignmentReviewOut, AssignmentSubmissionCreate, DiagnosisOut, EnrollmentOut, InstitutionClassOut, InstitutionCreate, InstitutionMemberCreate, InstitutionMemberOut, InstitutionOut, InstitutionReportOut, InterventionOut, LabCreate, LabOut, LabSubmissionCreate, LabSubmissionOut, LearnerOut, ProgressOut, ProjectCatalogOut, ProjectRecommendationOut, QuestionCreate, QuestionOut, QuestionPromptOut, ReassessmentCreate, ReassessmentOut, StudentAssignmentOut, StudentLabOut, SubmissionCreate, SubmissionOut, TeacherClassCreate, TeacherClassOut, TeacherDashboardOut)
+from app.schemas import (AssessmentDraftOut, AssessmentDraftRequest, AssignmentAttemptOut, AssignmentOut, AssignmentReviewOut, AssignmentSubmissionCreate, CodeDiagnosisCreate, CodeSubmissionCreate, DiagnosisOut, EnrollmentOut, InstitutionClassOut, InstitutionCreate, InstitutionMemberCreate, InstitutionMemberOut, InstitutionOut, InstitutionReportOut, InterventionOut, JudgeResultOut, LabCreate, LabOut, LabSubmissionCreate, LabSubmissionOut, LearnerOut, ProgressOut, ProjectCatalogOut, ProjectRecommendationOut, QuestionCreate, QuestionOut, QuestionPromptOut, ReassessmentCreate, ReassessmentOut, StudentAssignmentOut, StudentLabOut, SubmissionCreate, SubmissionOut, TeacherClassCreate, TeacherClassOut, TeacherDashboardOut)
 from app.services.assessment import create_assignment, generate_assessment
 from app.services.auth import get_current_user_from_headers, require_role
 from app.services.diagnosis import diagnose, normalize
 from app.services.intervention import create_intervention
-from app.services.learner import apply_assessment, profile_for
+from app.services.judge import judge_python_submission
+from app.services.learner import apply_assessment, profile_for, record_concept_success
 from app.services.projects import PROJECT_CATALOG, recommend_projects
 from app.services.teacher import build_teacher_dashboard, create_class, create_lab, enroll_student, list_classes, list_class_assignments, list_labs, list_student_assignments, list_student_labs, submit_lab_progress, update_lab_status
 
@@ -97,7 +98,10 @@ def submit(payload: SubmissionCreate, db: Session = Depends(get_db), current_use
     result = diagnose(q.expected_answer, payload.answer, payload.reasoning)
     diagnosis = Diagnosis(submission_id=record.id, is_correct=result.is_correct, misconception_id=result.misconception_id, confidence=result.confidence, evidence=result.evidence, error_type=result.error_type, needs_intervention=result.needs_intervention)
     db.add(diagnosis); db.commit(); db.refresh(diagnosis)
-    if result.misconception_id:
+    if result.is_correct:
+        profile = profile_for(db, current_user["id"])
+        record_concept_success(db, profile, q.concept_id, result.evidence)
+    elif result.misconception_id:
         profile = profile_for(db, current_user["id"])
         active = list(profile.active_misconceptions or [])
         if result.misconception_id not in active: active.append(result.misconception_id)
@@ -119,6 +123,39 @@ def direct_diagnose(payload: SubmissionCreate, db: Session = Depends(get_db), cu
     q = db.get(Question, payload.question_id)
     if not q: raise HTTPException(404, "Question not found")
     return diagnose(q.expected_answer, payload.answer, payload.reasoning)
+
+
+@router.post("/judge/python", response_model=JudgeResultOut)
+def judge_python(payload: CodeSubmissionCreate):
+    if payload.language.lower() != "python":
+        raise HTTPException(400, "This judge currently supports Python only.")
+    return judge_python_submission(payload.code, payload.problem_id, payload.function_name, payload.tests)
+
+
+@router.post("/diagnose/code")
+def diagnose_code(payload: CodeDiagnosisCreate):
+    try:
+        if payload.language.lower() != "python":
+            raise HTTPException(400, "Only Python code is supported for diagnosis.")
+        if not payload.code or not payload.code.strip():
+            raise HTTPException(400, "Empty code provided.")
+        
+        import sys
+        import os
+        # Add the root directory to sys.path so we can import 'ml'
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+        if root_dir not in sys.path:
+            sys.path.insert(0, root_dir)
+            
+        from ml.src.inference import predict
+        model_path = os.path.join(root_dir, "ml", "models", "exp5_fusion.pkl")
+        return predict(code=payload.code, problem_context=payload.problem_id, model_path=model_path)
+    except HTTPException:
+        raise
+    except ImportError as e:
+        raise HTTPException(500, f"ML subsystem not configured or missing dependencies: {e}")
+    except Exception as e:
+        raise HTTPException(500, f"Inference failed: {e}")
 
 
 @router.post("/interventions", response_model=InterventionOut, status_code=201)

@@ -51,6 +51,10 @@ Open the Vite URL (usually `http://localhost:5173`). The API endpoint is configu
 Set `VITE_NEON_AUTH_URL` in `frontend/.env.local` to the same Neon Auth base URL used by the backend. Sign-in fails closed when this is missing.
 Keep the FastAPI backend running in a separate terminal while using the frontend. Neon handles the credential check, then the frontend calls the API at `/api/auth/me` to load the application profile; if that API is unavailable, start the backend or set `VITE_API_URL` to its reachable URL.
 
+## Authentication integration
+
+Authentication is not implemented in this workspace yet. When connecting the login provider, import `announceAuthState` from `frontend/src/services/auth.ts` and call `announceAuthState({ userId: user.id })` after login or session restoration. Call `announceAuthState(null)` on logout. The onboarding tour opens once for each signed-in user; no credentials or provider-specific secrets are handled by Re:Learn's UI.
+
 ## API flow
 
 1. `POST /api/questions` creates or returns a question.

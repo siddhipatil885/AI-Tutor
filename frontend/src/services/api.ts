@@ -1,5 +1,12 @@
 const base = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 import { getAccessToken } from './auth'
+import type { Diagnosis, Intervention } from '../types'
+
+type CodeDiagnosisResult = {
+  predicted_misconception: { id: string; name: string; description: string }
+  confidence: number
+  top_predictions: Array<{ misconception: string; confidence: number; description?: string }>
+}
 
 async function request(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers)
@@ -101,3 +108,9 @@ export const generateAssessment = (payload: {
 }) => post<{ language: string; difficulty: string; questions: Array<{ id: number; topic: string; question_type: string; prompt: string; correct_answer: string; explanation: string; misconception_ids: string[] }> }>('/teacher/assessments/generate', payload)
 export const getProjectCatalog = (language = 'python') => get<{ language: string; projects: Array<{ title: string; difficulty: string; description: string; focus: string[]; fit_score: number }> }>(`/projects?language=${encodeURIComponent(language)}`)
 export const getProjectRecommendations = (payload: { language: string; mastery: Record<string, number>; completed_projects?: string[] }) => post<Array<{ title: string; language: string; difficulty: string; description: string; focus: string[]; fit_score: number }>>('/projects/recommend', payload)
+export const submitAnswer = (question_id: number, answer: string, reasoning?: string) =>
+  post<{ id: number; diagnosis: Diagnosis }>('/submissions', { user_id: 1, question_id, answer, reasoning })
+export const makeIntervention = (submissionId: number) =>
+  post<Intervention>(`/interventions?submission_id=${submissionId}`, {})
+export const diagnoseCode = (payload: { problem_id: string; language: string; code: string }) =>
+  post<CodeDiagnosisResult>('/diagnose/code', payload)

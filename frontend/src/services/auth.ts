@@ -7,8 +7,9 @@ export type AuthenticatedUser = {
   role: 'student' | 'teacher' | 'admin'
 }
 
-const authUrl = import.meta.env.VITE_NEON_AUTH_URL
-const backend = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+const authEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
+const authUrl = authEnv?.VITE_NEON_AUTH_URL
+const backend = authEnv?.VITE_API_URL || 'http://localhost:8000/api'
 const auth = authUrl ? createInternalNeonAuth(authUrl) : null
 
 function getAuth() {
@@ -66,4 +67,8 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     throw new Error(message || 'Unable to verify the authenticated session.')
   }
   return response.json()
+}
+
+export function journeyTourStorageKey(userId: string) {
+  return `relearn.journey-tour.seen:${encodeURIComponent(userId)}`
 }

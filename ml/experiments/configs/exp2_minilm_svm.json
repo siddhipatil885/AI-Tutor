@@ -1,0 +1,22 @@
+{
+  "experiment": "exp2_minilm_svm",
+  "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+  "model_source": "sentence-transformers hub",
+  "param_size": "22M",
+  "embedding_method": "mean-pooled sentence embedding (384-dim)",
+  "computational_requirements": "CPU-friendly; ~1 min on 850 samples",
+  "reason_for_selection": "Strong general-purpose semantic baseline. Fast inference, well-calibrated embeddings; serves as upper bound for non-code-aware representations.",
+  "max_code_length": 512,
+  "classifier": {
+    "name": "SVC",
+    "C": 10.0,
+    "kernel": "rbf",
+    "class_weight": "balanced",
+    "probability": true
+  },
+  "leakage_excluded": [
+    "reasoning",
+    "global_misconception_index"
+  ],
+  "random_seed": 42
+}
