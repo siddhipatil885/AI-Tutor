@@ -3,10 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.entities import Assessment, Diagnosis, Intervention, Question, Submission
-from app.schemas import (DiagnosisOut, InterventionOut, LearnerOut, ProgressOut, QuestionCreate, QuestionOut, ReassessmentCreate, ReassessmentOut, SubmissionCreate, SubmissionOut)
+from app.schemas import (CodeSubmissionCreate, DiagnosisOut, InterventionOut, JudgeResultOut, LearnerOut, ProgressOut, QuestionCreate, QuestionOut, ReassessmentCreate, ReassessmentOut, SubmissionCreate, SubmissionOut)
 from app.services.diagnosis import diagnose, normalize
 from app.services.intervention import create_intervention
-from app.services.learner import apply_assessment, profile_for
+from app.services.judge import judge_python_submission
+from app.services.learner import apply_assessment, profile_for, record_concept_success
 
 router = APIRouter(prefix="/api")
 
@@ -50,7 +51,10 @@ def submit(payload: SubmissionCreate, db: Session = Depends(get_db)):
     result = diagnose(q.expected_answer, payload.answer, payload.reasoning)
     diagnosis = Diagnosis(submission_id=record.id, is_correct=result.is_correct, misconception_id=result.misconception_id, confidence=result.confidence, evidence=result.evidence, error_type=result.error_type, needs_intervention=result.needs_intervention)
     db.add(diagnosis); db.commit(); db.refresh(diagnosis)
-    if result.misconception_id:
+    if result.is_correct:
+        profile = profile_for(db, payload.user_id)
+        record_concept_success(db, profile, q.concept_id, result.evidence)
+    elif result.misconception_id:
         profile = profile_for(db, payload.user_id)
         active = list(profile.active_misconceptions or [])
         if result.misconception_id not in active: active.append(result.misconception_id)
@@ -71,6 +75,13 @@ def direct_diagnose(payload: SubmissionCreate, db: Session = Depends(get_db)):
     q = db.get(Question, payload.question_id)
     if not q: raise HTTPException(404, "Question not found")
     return diagnose(q.expected_answer, payload.answer, payload.reasoning)
+
+
+@router.post("/judge/python", response_model=JudgeResultOut)
+def judge_python(payload: CodeSubmissionCreate):
+    if payload.language.lower() != "python":
+        raise HTTPException(400, "This judge currently supports Python only.")
+    return judge_python_submission(payload.code, payload.problem_id, payload.function_name, payload.tests)
 
 
 @router.post("/interventions", response_model=InterventionOut, status_code=201)
