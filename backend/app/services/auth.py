@@ -1,49 +1,114 @@
 from __future__ import annotations
 
-from fastapi import Header, HTTPException
+from functools import lru_cache
+
+import jwt
+from fastapi import Depends, Header, HTTPException
+from jwt.exceptions import PyJWKClientConnectionError, PyJWKClientError
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.config import get_settings
+from app.db.session import get_db
+from app.models.entities import AuthIdentity, User
 
 
-def authenticate_user(email: str, password: str, name: str | None = None, role: str | None = None) -> dict:
-    """Minimal local auth helper for development and classroom role separation."""
-    if not email or not password:
-        raise ValueError("Email and password are required.")
+@lru_cache(maxsize=4)
+def _jwks_client(url: str) -> jwt.PyJWKClient:
+    return jwt.PyJWKClient(url)
 
-    normalized_email = email.strip().lower()
-    normalized_name = (name or normalized_email.split("@", 1)[0]).strip()
-    inferred_role = (role or "teacher").lower() if "teacher" in normalized_email or (role and role.lower() == "teacher") else "student"
-    user = {
-        "id": 1 if inferred_role == "teacher" else 2,
-        "name": normalized_name or "Learner",
-        "email": normalized_email,
-        "role": inferred_role,
-    }
-    if password == "teacher123" and inferred_role == "teacher":
-        return user
-    if normalized_email.endswith("@demo.com"):
-        return user
-    return user
+
+def verify_access_token(token: str) -> dict:
+    settings = get_settings()
+    if not settings.neon_auth_issuer or not settings.neon_auth_jwks_url:
+        raise HTTPException(status_code=503, detail="Authentication is not configured.")
+
+    try:
+        header = jwt.get_unverified_header(token)
+        algorithm = header.get("alg")
+        if algorithm not in {"RS256", "ES256", "EdDSA"}:
+            raise HTTPException(status_code=401, detail="Invalid access token.")
+        signing_key = _jwks_client(settings.neon_auth_jwks_url).get_signing_key_from_jwt(token).key
+        return jwt.decode(
+            token,
+            signing_key,
+            algorithms=[algorithm],
+            audience=settings.neon_auth_audience,
+            issuer=settings.neon_auth_issuer,
+            options={"require": ["exp", "iss", "sub", "aud"]},
+        )
+    except PyJWKClientConnectionError as exc:
+        raise HTTPException(status_code=503, detail="Authentication provider is unavailable.") from exc
+    except (PyJWKClientError, jwt.InvalidTokenError, ValueError) as exc:
+        raise HTTPException(status_code=401, detail="Invalid access token.") from exc
+
+
+def _email_set(value: str) -> set[str]:
+    return {email.strip().lower() for email in value.split(",") if email.strip()}
+
+
+def _role_for_claims(claims: dict) -> str:
+    email = str(claims.get("email") or "").strip().lower()
+    if not email or claims.get("email_verified") is not True:
+        return "student"
+    settings = get_settings()
+    if email in _email_set(settings.neon_auth_admin_emails):
+        return "admin"
+    if email in _email_set(settings.neon_auth_teacher_emails):
+        return "teacher"
+    return "student"
+
+
+def user_for_claims(claims: dict, db: Session) -> dict:
+    subject = claims.get("sub")
+    if not isinstance(subject, str) or not subject.strip():
+        raise HTTPException(status_code=401, detail="Access token has no subject.")
+
+    identity = db.query(AuthIdentity).filter_by(subject=subject).one_or_none()
+    user = db.get(User, identity.user_id) if identity else None
+    email_claim = claims.get("email")
+    email_verified = claims.get("email_verified") is True
+    email = str(email_claim).strip().lower() if email_claim and email_verified else None
+
+    if user is None and email:
+        user = db.query(User).filter(func.lower(User.email) == email).one_or_none()
+
+    name = str(claims.get("name") or (email.split("@", 1)[0] if email else "Learner"))[:120]
+    if user is None:
+        user = User(name=name, email=email, role=_role_for_claims(claims))
+        db.add(user)
+        db.flush()
+    else:
+        user.name = name
+        if email:
+            user.email = email
+        user.role = _role_for_claims(claims)
+
+    if identity is None:
+        db.add(AuthIdentity(subject=subject, user_id=user.id))
+    db.commit()
+    db.refresh(user)
+    return {"id": user.id, "name": user.name, "email": user.email or "", "role": user.role}
+
+
+def get_current_user_from_headers(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    db: Session = Depends(get_db),
+) -> dict:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    claims = verify_access_token(authorization[7:].strip())
+    return user_for_claims(claims, db)
 
 
 def require_role(required_roles: list[str], user: dict | None) -> dict:
     if not user:
-        raise PermissionError("Authentication required.")
+        raise HTTPException(status_code=401, detail="Authentication required.")
     role = (user.get("role") or "student").lower()
     if role not in {item.lower() for item in required_roles} and role != "admin":
-        raise PermissionError(f"Access denied. Required role: {', '.join(required_roles)}")
+        raise HTTPException(status_code=403, detail=f"Access denied. Required role: {', '.join(required_roles)}")
     return user
-
-
-def get_current_user_from_headers(
-    x_user_id: int | None = Header(default=None, alias="X-User-Id"),
-    x_user_role: str | None = Header(default=None, alias="X-User-Role"),
-    x_user_email: str | None = Header(default=None, alias="X-User-Email"),
-    x_user_name: str | None = Header(default=None, alias="X-User-Name"),
-) -> dict | None:
-    if x_user_id is None and x_user_role is None and x_user_email is None:
-        return None
-    return {
-        "id": x_user_id or 0,
-        "role": (x_user_role or "student").lower(),
-        "email": x_user_email or "",
-        "name": x_user_name or "User",
-    }

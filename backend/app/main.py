@@ -9,8 +9,16 @@ from app.db.session import Base, engine
 
 app = FastAPI(title="Re:Learn API", version="0.1.0")
 settings = get_settings()
+allowed_origins = settings.frontend_origins or [settings.frontend_origin]
 Base.metadata.create_all(bind=engine)
-app.add_middleware(CORSMiddleware, allow_origins=[settings.frontend_origin, "http://127.0.0.1:5173"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):\d+",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(router)
 
 

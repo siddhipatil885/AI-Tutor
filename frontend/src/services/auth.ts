@@ -1,77 +1,69 @@
-type LocalUser = {
+import { createInternalNeonAuth } from '@neondatabase/auth'
+
+export type AuthenticatedUser = {
   id: number
   name: string
   email: string
   role: 'student' | 'teacher' | 'admin'
 }
 
-const STORAGE_KEY = 'relearn-auth-user'
+const authUrl = import.meta.env.VITE_NEON_AUTH_URL
+const backend = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+const auth = authUrl ? createInternalNeonAuth(authUrl) : null
 
-const buildLocalUser = (email: string, name: string): LocalUser => {
-  const normalized = email.trim().toLowerCase()
-  const role = normalized.includes('teacher') || normalized.includes('@teacher.') ? 'teacher' : 'student'
-  return {
-    id: Date.now(),
-    name: name || normalized.split('@')[0] || 'Learner',
-    email: normalized,
-    role,
-  }
+function getAuth() {
+  if (!auth) throw new Error('Neon Auth is not configured. Set VITE_NEON_AUTH_URL in the frontend environment.')
+  return auth
 }
 
-const getStoredUser = (): LocalUser | null => {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) as LocalUser : null
-  } catch {
-    return null
-  }
-}
-
-const setStoredUser = (user: LocalUser) => {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
-}
-
-const getErrorMessage = (error: unknown) => {
-  if (error && typeof error === 'object' && 'message' in error) {
-    return String(error.message)
-  }
-  return 'Authentication failed. Please try again.'
+function throwAuthError(result: { error?: { message?: string } | null }) {
+  if (result.error) throw new Error(result.error.message || 'Authentication failed.')
 }
 
 export async function signUp(email: string, password: string, name: string) {
-  if (!email || !password) {
-    throw new Error('Email and password are required.')
-  }
-  const user = buildLocalUser(email, name)
-  setStoredUser(user)
-  return user
+  const result = await getAuth().adapter.signUp.email({ email, password, name })
+  throwAuthError(result)
+  return result.data
 }
 
 export async function signIn(email: string, password: string) {
-  if (!email || !password) {
-    throw new Error('Email and password are required.')
-  }
-  const localUser = buildLocalUser(email, email.split('@')[0])
-  if (localUser.role === 'teacher' || password === 'teacher123' || email.toLowerCase().endsWith('@demo.com')) {
-    setStoredUser({ ...localUser, role: 'teacher' })
-    return { ...localUser, role: 'teacher' }
-  }
-  const stored = getStoredUser()
-  if (stored && stored.email.toLowerCase() === email.toLowerCase()) {
-    setStoredUser(stored)
-    return stored
-  }
-  setStoredUser(localUser)
-  return localUser
+  const result = await getAuth().adapter.signIn.email({ email, password })
+  throwAuthError(result)
+  return result.data
 }
 
 export async function signOut() {
-  window.localStorage.removeItem(STORAGE_KEY)
+  const result = await getAuth().adapter.signOut()
+  throwAuthError(result)
   return true
 }
 
-export async function getCurrentUser() {
-  const user = getStoredUser()
-  if (!user) return null
-  return user
+export async function getAccessToken() {
+  return auth?.getJWTToken() ?? null
+}
+
+export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+  if (!auth) return null
+  const session = await auth.adapter.getSession()
+  throwAuthError(session)
+  if (!session.data?.session) return null
+
+  const token = await auth.getJWTToken()
+  if (!token) return null
+  let response: Response
+  try {
+    response = await fetch(`${backend}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+  } catch (cause) {
+    if (cause instanceof TypeError) {
+      throw new Error(
+        `Your Neon sign-in succeeded, but the Re:Learn API could not be reached at ${backend}. Start the FastAPI backend or set VITE_API_URL to the deployed API URL.`,
+      )
+    }
+    throw cause
+  }
+  if (!response.ok) {
+    const message = (await response.json().catch(() => null))?.detail
+    throw new Error(message || 'Unable to verify the authenticated session.')
+  }
+  return response.json()
 }
