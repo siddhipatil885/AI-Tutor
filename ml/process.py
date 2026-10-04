@@ -2,11 +2,12 @@ import os, json, glob, pandas as pd, numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
-RAW_DIR = r'c:\Users\patil\OneDrive\Desktop\projects\AI-Tutor\ml\data\raw\mcminer\corrupted_codes_best'
+_HERE = os.path.dirname(os.path.abspath(__file__))
+RAW_DIR = os.path.join(_HERE, 'data', 'raw', 'mcminer', 'corrupted_codes_best')
 if not os.path.exists(RAW_DIR):
-    RAW_DIR = r'c:\Users\patil\OneDrive\Desktop\projects\AI-Tutor\ml\data\raw\mcminer\dataset\corrupted_codes_best'
+    RAW_DIR = os.path.join(_HERE, 'data', 'raw', 'mcminer', 'dataset', 'corrupted_codes_best')
 
-PROCESSED_DIR = r'c:\Users\patil\OneDrive\Desktop\projects\AI-Tutor\ml\data\processed'
+PROCESSED_DIR = os.path.join(_HERE, 'data', 'processed')
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
 code_files = [f for f in glob.glob(os.path.join(RAW_DIR, '*.json')) if not f.endswith('filtering_report.json')]
