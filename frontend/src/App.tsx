@@ -136,7 +136,8 @@ function LearningApp({ userId, onLogout }: { userId: string; onLogout: () => Pro
     if (activeTask.id === 'RL-1042' && question) {
       setLoading(true); setProblem('')
       try {
-        const result = await existingDiagnosisAdapter.diagnose({ taskId:activeTask.id, conceptId:activeTask.conceptId, output:check.preview, userId:1, questionId:question.id })
+        const source = workspace.files['src/sequence.py'] || ''
+        const result = await existingDiagnosisAdapter.diagnose({ taskId:activeTask.id, conceptId:activeTask.conceptId, output:check.preview, code:source, allPassed: check.allPassed, userId:1, questionId:question.id })
         setDiagnosis(result.diagnosis)
         if (result.diagnosis.needs_intervention) setIntervention(await existingInterventionAdapter.create(result.submissionId))
         if (!result.diagnosis.is_correct) {

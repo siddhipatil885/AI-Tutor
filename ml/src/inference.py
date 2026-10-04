@@ -97,6 +97,17 @@ class MisconceptionPredictor:
             if not hasattr(self, "_st_model"):
                 self._st_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
             emb = self._st_model.encode([code[:2048]], normalize_embeddings=True)
+            
+            if "fusion" in self.model_name:
+                import sys
+                import os
+                root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+                if root_dir not in sys.path:
+                    sys.path.insert(0, root_dir)
+                from ml.src.features.tree_sitter_features import extract_features_from_code, features_to_matrix
+                ts_dict = extract_features_from_code(code)
+                ts_mat, _ = features_to_matrix([ts_dict])
+                return np.hstack([emb, ts_mat])
             return emb
         except ImportError:
             raise RuntimeError("sentence-transformers not installed.")
@@ -152,15 +163,16 @@ class MisconceptionPredictor:
     def predict_dict(self, code: str, problem_context: str = "") -> dict:
         result = self.predict(code, problem_context)
         return {
-            "predicted_misconception": result.predicted_misconception,
-            "misconception_description": result.misconception_description,
+            "predicted_misconception": {
+                "id": str(result.predicted_misconception),
+                "name": result.misconception_description,
+                "description": result.misconception_description
+            },
             "confidence": result.confidence,
-            "model_name": result.model_name,
             "top_predictions": [
                 {
-                    "misconception": p.misconception,
-                    "probability": p.probability,
-                    "description": p.description,
+                    "misconception": str(p.misconception),
+                    "confidence": p.probability
                 }
                 for p in result.top_predictions
             ],

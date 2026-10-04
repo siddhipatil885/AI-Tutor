@@ -21,19 +21,31 @@ async function unwrap<T extends { data?: unknown; error?: unknown }>(request: Pr
   if (result.error) throw new Error(getErrorMessage(result.error))
   return result.data
 }
+export const signUp = async (email: string, password: string, name: string) => {
+  console.log('Mock sign up:', email, name)
+  if (typeof window !== 'undefined') window.localStorage.setItem('mock_auth', 'true')
+  return { user: { id: 'mock-user-1', email, name } }
+}
+export const signIn = async (email: string, password: string) => {
+  console.log('Mock sign in:', email)
+  if (typeof window !== 'undefined') window.localStorage.setItem('mock_auth', 'true')
+  return { user: { id: 'mock-user-1', email } }
+}
 
-export const signUp = (email: string, password: string, name: string) =>
-  unwrap(requireAuthClient().signUp.email({ email, password, name }))
-
-export const signIn = (email: string, password: string) =>
-  unwrap(requireAuthClient().signIn.email({ email, password }))
-
-export const signOut = () => unwrap(requireAuthClient().signOut())
+export const signOut = async () => {
+  console.log('Mock sign out')
+  if (typeof window !== 'undefined') window.localStorage.removeItem('mock_auth')
+  return true
+}
 
 export async function getCurrentUser() {
-  const result = await requireAuthClient().getSession()
-  if (result.error) throw new Error(getErrorMessage(result.error))
-  return result.data?.user ?? null
+  // Try to simulate a logged-in session based on a flag or local storage, 
+  // but for now, just return null so the login screen shows initially.
+  // We can return a mock user if they have a 'mock_auth' token in local storage.
+  if (typeof window !== 'undefined' && window.localStorage.getItem('mock_auth') === 'true') {
+    return { id: 'mock-user-1', email: 'mock@example.com', name: 'Alex Learner' } as any
+  }
+  return null
 }
 
 export type AuthSession = { userId: string }

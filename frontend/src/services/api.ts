@@ -17,3 +17,4 @@ export const makeIntervention = (submissionId: number) => api<Intervention>(`/in
 export const startReassessment = (intervention_id: number) => api<Assessment>('/reassessment', {method:'POST', body:JSON.stringify({user_id:1, intervention_id})})
 export const answerReassessment = (intervention_id: number, assessment_id: number, answer: string) => api<Assessment>('/reassessment', {method:'POST', body:JSON.stringify({user_id:1, intervention_id, assessment_id, answer})})
 export const judgePythonSubmission = (payload: { problem_id: string; language?: string; function_name: string; code: string; tests: unknown[] }) => api<JudgeResult>('/judge/python', { method: 'POST', body: JSON.stringify({ ...payload, language: payload.language ?? 'python' }) })
+export const diagnoseCode = (payload: { problem_id: string; language: string; code: string }) => api<any>('/diagnose/code', { method: 'POST', body: JSON.stringify(payload) })

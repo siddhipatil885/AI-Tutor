@@ -48,7 +48,8 @@ class CodeSubmissionCreate(BaseModel):
     tests: list[dict[str, Any]] = Field(default_factory=list)
 
 class CodeDiagnosisCreate(BaseModel):
-    problem_context: str = ""
+    problem_id: str = ""
+    language: str = "python"
     code: str = Field(min_length=1)
 
 

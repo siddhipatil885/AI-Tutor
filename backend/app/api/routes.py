@@ -87,6 +87,11 @@ def judge_python(payload: CodeSubmissionCreate):
 @router.post("/diagnose/code")
 def diagnose_code(payload: CodeDiagnosisCreate):
     try:
+        if payload.language.lower() != "python":
+            raise HTTPException(400, "Only Python code is supported for diagnosis.")
+        if not payload.code or not payload.code.strip():
+            raise HTTPException(400, "Empty code provided.")
+        
         import sys
         import os
         # Add the root directory to sys.path so we can import 'ml'
@@ -95,7 +100,10 @@ def diagnose_code(payload: CodeDiagnosisCreate):
             sys.path.insert(0, root_dir)
             
         from ml.src.inference import predict
-        return predict(code=payload.code, problem_context=payload.problem_context)
+        model_path = os.path.join(root_dir, "ml", "models", "exp5_fusion.pkl")
+        return predict(code=payload.code, problem_context=payload.problem_id, model_path=model_path)
+    except HTTPException:
+        raise
     except ImportError as e:
         raise HTTPException(500, f"ML subsystem not configured or missing dependencies: {e}")
     except Exception as e:
